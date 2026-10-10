@@ -38,7 +38,7 @@ class Hub(ctk.CTk):
         self.current: str | None = None
 
         ctk.set_appearance_mode(self.settings.get("theme", "dark"))
-        self.title("Araç Merkezi")
+        self.title(f"Araç Merkezi  —  v{__version__}")
         self.geometry("1100x720")
         self.minsize(940, 620)
         self.configure(fg_color=BG)
@@ -116,8 +116,9 @@ class Hub(ctk.CTk):
         bar.grid_propagate(False)
         ctk.CTkLabel(bar, text="🧰  Araç Merkezi", font=ctk.CTkFont(size=20, weight="bold")).pack(
             anchor="w", padx=20, pady=(28, 2))
-        ctk.CTkLabel(bar, text=f"v{__version__}", text_color=MUTED, font=ctk.CTkFont(size=11)).pack(
-            anchor="w", padx=22, pady=(0, 22))
+        ctk.CTkLabel(bar, text=f"Sürüm {__version__}", font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color=("#3730a3", "#a5b4fc"), fg_color=("#e0e7ff", "#272b4a"), corner_radius=8,
+                     height=24).pack(anchor="w", padx=22, pady=(2, 22), ipadx=8)
         self.nav: dict[str, ctk.CTkButton] = {}
         self._nav_button(bar, "home", "🏠  Ana sayfa")
         ctk.CTkLabel(bar, text="ARAÇLAR", text_color=MUTED, font=ctk.CTkFont(size=11, weight="bold")).pack(

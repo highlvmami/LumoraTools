@@ -28,6 +28,30 @@ def read_version() -> str:
     return re.search(r'__version__\s*=\s*"([^"]+)"', text).group(1)
 
 
+def write_version_file(version: str) -> Path:
+    """Windows sürüm bilgisi kaynağı (PyInstaller --version-file biçimi)."""
+    nums = (tuple(int(x) for x in re.findall(r"\d+", version)) + (0, 0, 0, 0))[:4]
+    text = f"""VSVersionInfo(
+  ffi=FixedFileInfo(filevers={nums}, prodvers={nums}, mask=0x3f, flags=0x0, OS=0x40004,
+                    fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable('040904B0', [
+      StringStruct('FileDescription', 'Arac Merkezi'),
+      StringStruct('FileVersion', '{version}'),
+      StringStruct('InternalName', '{NAME}'),
+      StringStruct('OriginalFilename', '{NAME}.exe'),
+      StringStruct('ProductName', 'Arac Merkezi'),
+      StringStruct('ProductVersion', '{version}')])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
+"""
+    path = ROOT / "build" / "version_info.txt"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--update-url", help="Uygulamaya gömülecek varsayılan manifest adresi (https)")
@@ -43,13 +67,14 @@ def main() -> int:
             f'UPDATE_URL = "{args.update_url}"\n', encoding="utf-8")
 
     icon = ROOT / "assets" / "icon.ico"
+    version_file = write_version_file(read_version())  # .exe sağ tık > Ayrıntılar'da görünen sürüm
     # Araç modülleri dinamik import edilir (importlib), PyInstaller bunları kendiliğinden görmez.
     sys.path.insert(0, str(ROOT / "src"))
     from aracmerkezi.registry import BUILTIN_TOOLS
     hidden = [arg for name in BUILTIN_TOOLS for arg in ("--hidden-import", f"aracmerkezi.tools.{name}")]
     cmd = [
         sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--windowed",
-        "--name", NAME, "--icon", str(icon), "--add-data", f"{icon};assets",
+        "--name", NAME, "--icon", str(icon), "--add-data", f"{icon};assets", "--version-file", str(version_file),
         "--paths", str(ROOT / "src"),
         "--collect-all", "customtkinter",
         "--collect-submodules", "aracmerkezi", "--collect-submodules", "duzenle",
