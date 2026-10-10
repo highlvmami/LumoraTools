@@ -59,6 +59,7 @@ class ScreenshotsPage(ctk.CTkFrame):
         self.visible: dict[str, lib.Shot] = {}
         self._token = 0
         self._img = None            # CTkImage referansı (silinmesin)
+        self._blank = None          # görünmez yer tutucu görüntü (bkz. _set_preview)
         self._filter_job: str | None = None
         self._reload_job: str | None = None
 
@@ -250,20 +251,36 @@ class ScreenshotsPage(ctk.CTkFrame):
     def clear_selection(self) -> None:
         self.tree.selection_remove(self.tree.selection())
 
+    def _blank_image(self):
+        """Görünmez 1×1 yer tutucu: önizleme etiketi hiçbir zaman 'görüntüsüz' bırakılmaz."""
+        if self._blank is None:
+            from PIL import Image
+            self._blank = ctk.CTkImage(light_image=Image.new("RGBA", (1, 1), (0, 0, 0, 0)), size=(1, 1))
+        return self._blank
+
+    def _set_preview(self, image, text: str) -> None:
+        """Önizlemeyi günceller.
+
+        `image=None` verilmez: CTkLabel, eski görüntü bellekten atılınca yok olmuş görüntüye bakmaya devam eder ve
+        sonraki her güncelleme `image "pyimageN" does not exist` ile çöker. Bu yüzden önce etiket yeni (ya da
+        yer tutucu) görüntüye geçirilir, eski görüntü ancak ondan sonra bırakılır.
+        """
+        image = image or self._blank_image()
+        self.preview.configure(image=image, text=text)
+        self._img = image
+
     def _show_preview(self) -> None:
         shots = self._selected_list()
         self._update_selection_ui(shots)
         shot = self._selected()
         self.note_entry.delete(0, "end")
         if len(shots) > 1:  # çoklu seçim: görüntü yerine özet göster
-            self._img = None
-            self.preview.configure(image=None, text=f"{len(shots)} görüntü seçili")
+            self._set_preview(None, f"{len(shots)} görüntü seçili")
             self.detail.configure(text=f"Toplam {human_size(sum(s.size for s in shots))}\n"
                                        "🗑 ile hepsini Geri Dönüşüm Kutusu'na taşıyabilirsin.")
             return
         if not shot:
-            self._img = None
-            self.preview.configure(image=None, text="Bir görüntü seç")
+            self._set_preview(None, "Bir görüntü seç")
             self.detail.configure(text="")
             return
         self.note_entry.insert(0, self.notes.get(shot.key, ""))
@@ -274,12 +291,10 @@ class ScreenshotsPage(ctk.CTkFrame):
                 img = im.convert("RGBA") if im.mode not in ("RGB", "RGBA") else im.copy()
                 w, h = img.size
                 img.thumbnail(PREVIEW_BOX)
-            self._img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
-            self.preview.configure(image=self._img, text="")
+            self._set_preview(ctk.CTkImage(light_image=img, dark_image=img, size=img.size), "")
             dims = f"{w}×{h} px   ·   "
         except Exception:
-            self._img = None
-            self.preview.configure(image=None, text="Önizlenemiyor")
+            self._set_preview(None, "Önizlenemiyor")
             dims = ""
         folder = self._folder(quiet=True)
         try:
