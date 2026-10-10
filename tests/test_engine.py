@@ -74,3 +74,22 @@ def test_second_run_is_idempotent(tmp_path):
     touch(tmp_path / "a.jpg")
     engine.apply(tmp_path, engine.plan(tmp_path))
     assert engine.plan(tmp_path, recursive=True) == []
+
+
+def test_skips_windows_system_files(tmp_path):
+    touch(tmp_path / "desktop.ini")
+    touch(tmp_path / "Thumbs.db")
+    touch(tmp_path / "a.jpg")
+    assert [m.src.name for m in engine.plan(tmp_path)] == ["a.jpg"]
+
+
+def test_skips_files_with_hidden_attribute(tmp_path):
+    import subprocess
+    import sys
+    import pytest
+    if sys.platform != "win32":
+        pytest.skip("yalnızca Windows")
+    gizli = touch(tmp_path / "gizli.pdf")
+    touch(tmp_path / "gorunur.pdf")
+    subprocess.run(["attrib", "+h", str(gizli)], check=True)
+    assert [m.src.name for m in engine.plan(tmp_path)] == ["gorunur.pdf"]

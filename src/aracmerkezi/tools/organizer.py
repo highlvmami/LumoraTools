@@ -213,6 +213,17 @@ class OrganizerPage(ctk.CTkFrame):
     def _here(it: Item) -> str:
         return "(ana klasör)" if it.src_dir == "." else it.src_dir + "\\"
 
+    def _row_values(self, it: Item, on: bool) -> tuple[str, str, str]:
+        """Seçili dosya yeni yerini gösterir; seçilmeyen 'yerinde kalacak' der (taşınmayacağı belli olsun)."""
+        dest = "→  " + it.new_rel if on else "yerinde kalacak (taşınmaz)"
+        return human_size(it.size), self._here(it), dest
+
+    @staticmethod
+    def _group_dest(on: int, total: int) -> str:
+        if on == 0:
+            return f"{total} dosyanın hiçbiri taşınmayacak"
+        return f"←  {on} dosya buraya taşınacak" + (f"  ({total - on} yerinde kalır)" if on < total else "")
+
     def _render(self) -> None:
         """Planı hedef klasörlere göre gruplayıp baştan çizer (plan veya filtre değişince)."""
         view = self.view
@@ -228,11 +239,11 @@ class OrganizerPage(ctk.CTkFrame):
             self.is_new.setdefault(name, not (self.root / name).exists())
             size = sum(it.size for it in items)
             self.tree.insert("", "end", iid=gid, text=self._group_text(name, items, view.checked),
-                             values=(human_size(size), "", "←  dosyalar buraya taşınacak"),
+                             values=(human_size(size), "", self._group_dest(len(items), len(items))),
                              open=self.expanded.get(gid, default_open), tags=("group",))
             for it in items:
                 self.tree.insert(gid, "end", iid=f"f:{it.idx}", text=f"☑  {it.name}",
-                                 values=(human_size(it.size), self._here(it), "→  " + it.new_rel), tags=("on",))
+                                 values=self._row_values(it, True), tags=("on",))
         self._sync()
 
     def _sync(self) -> None:
@@ -243,11 +254,14 @@ class OrganizerPage(ctk.CTkFrame):
         for name, items in view.groups():
             gid = f"g:{name}"
             if self.tree.exists(gid):
-                self.tree.item(gid, text=self._group_text(name, items, view.checked))
+                on_count = sum(it.idx in view.checked for it in items)
+                self.tree.item(gid, text=self._group_text(name, items, view.checked),
+                               values=(human_size(sum(it.size for it in items)), "",
+                                       self._group_dest(on_count, len(items))))
             for it in items:
                 on = it.idx in view.checked
                 self.tree.item(f"f:{it.idx}", text=f"{'☑' if on else '☐'}  {it.name}",
-                               tags=("on" if on else "off",))
+                               values=self._row_values(it, on), tags=("on" if on else "off",))
         total, sel = len(view.items), len(view.checked)
         groups = {it.group for it in view.selected_items()}
         new = sum(1 for g in groups if self.is_new.get(g, True))
@@ -260,6 +274,8 @@ class OrganizerPage(ctk.CTkFrame):
         else:
             self.dest_info.configure(text="📍 Hiçbir dosya seçili değil; taşınacak bir şey yok.")
         text = f"{sel} / {total} dosya seçili ({human_size(view.selected_bytes())})"
+        if total - sel:
+            text += f"   ·   {total - sel} dosya yerinde kalacak"
         hidden = view.hidden_selected()
         if hidden:
             text += f"   ·   {hidden} seçili dosya filtre nedeniyle gizli (yine de taşınır)"

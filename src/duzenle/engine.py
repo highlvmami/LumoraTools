@@ -25,14 +25,27 @@ class Move:
     dst: Path
 
 
+SYSTEM_FILES = {"desktop.ini", "thumbs.db"}   # Windows'un klasör görünümü için kullandığı dosyalar
+_HIDDEN_OR_SYSTEM = 0x2 | 0x4                  # FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM
+
+
+def _is_system(p: Path) -> bool:
+    if p.name.lower() in SYSTEM_FILES:
+        return True
+    try:
+        return bool(getattr(p.stat(), "st_file_attributes", 0) & _HIDDEN_OR_SYSTEM)
+    except OSError:
+        return True  # okunamayan dosyaya dokunma
+
+
 def scan(folder: Path, recursive: bool = False) -> list[Path]:
-    """Taşınabilir dosyaları döndürür (gizli, kısmi ve günlük dosyası hariç)."""
+    """Taşınabilir dosyaları döndürür (gizli/sistem, kısmi ve günlük dosyası hariç)."""
     it = folder.rglob("*") if recursive else folder.iterdir()
     files = []
     for p in it:
         if not p.is_file() or p.name.startswith(".") or p.name == LOG_NAME:
             continue
-        if p.suffix.lower() in PARTIAL_EXTENSIONS:
+        if p.suffix.lower() in PARTIAL_EXTENSIONS or _is_system(p):
             continue
         files.append(p)
     return sorted(files)
