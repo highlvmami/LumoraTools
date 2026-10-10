@@ -11,8 +11,8 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from ... import ui
-from ...ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, StatCard, ghost_button,
-                   make_tree)
+from ...ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, Spinner, StatCard,
+                   ghost_button, make_tree)
 from .index import Hit, Index
 
 
@@ -182,6 +182,7 @@ class SearchPage(ctk.CTkFrame):
 
         card = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
         card.pack(fill="both", expand=True)
+        self.spinner = Spinner(card)  # dizinleme sürerken kartın ortasında döner
         ctk.CTkLabel(card, text="Dizinlenecek klasörler", font=ctk.CTkFont(size=15, weight="bold")).pack(
             anchor="w", padx=18, pady=(16, 6))
         self.roots_frame = ctk.CTkScrollableFrame(card, fg_color="transparent", height=120)
@@ -261,6 +262,7 @@ class SearchPage(ctk.CTkFrame):
         self.indexing = True
         self.stop_event.clear()
         self.run_btn.configure(text="■  Durdur", fg_color=DANGER, hover_color=DANGER_HOVER)
+        self.spinner.start("Dosyalar dizinleniyor…")
         roots, db = list(self.roots), self.db_path
 
         def work():
@@ -299,6 +301,7 @@ class SearchPage(ctk.CTkFrame):
                 finished = True
         if finished:
             self.indexing = False
+            self.spinner.stop()
             self.run_btn.configure(text="⟳  Dizinle / güncelle", fg_color=OK, hover_color=ui.OK_HOVER)
             self._refresh_stats()
             self.run_search()

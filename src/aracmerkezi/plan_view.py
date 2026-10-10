@@ -23,6 +23,7 @@ class Item:
     size: int
     group: str      # hedef klasör (kökten göreli), ör. "Resimler\2026\10"
     new_rel: str    # yeni yerin kökten göreli yolu, ör. "Resimler\2026\10\a.jpg"
+    src_dir: str    # dosyanın şu an bulunduğu klasör (kökten göreli); "." = ana klasör
 
     @property
     def name(self) -> str:
@@ -38,7 +39,8 @@ class PlanView:
             self.items.append(Item(
                 idx=i, move=m, size=sizes.get(m.src, 0),
                 group=str(m.dst.parent.relative_to(root)),
-                new_rel=str(m.dst.relative_to(root))))
+                new_rel=str(m.dst.relative_to(root)),
+                src_dir=str(m.src.parent.relative_to(root))))
         self.checked: set[int] = {it.idx for it in self.items}  # varsayılan: hepsi seçili
         self.query = ""
 

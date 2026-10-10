@@ -1,8 +1,10 @@
-"""Dosya Düzenleyici aracı: klasörü uzantıya/tarihe göre düzenler, izler."""
+"""Dosya Düzenleyici aracı: klasörü uzantıya/tarihe göre düzenler, yapısını listeler, izler."""
 from __future__ import annotations
 
 import queue
 import threading
+from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -15,16 +17,20 @@ from duzenle.watcher import Watcher
 from .. import ui
 from ..plan_view import Item, PlanView
 from ..registry import ToolInfo
-from ..ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, OK_HOVER, StatCard,
+from ..structure import build_tree, list_entries
+from ..ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, OK_HOVER, Spinner, StatCard,
                   ghost_button)
 
-MODE_LABELS = {"Uzantıya göre": "uzanti", "Tarihe göre": "tarih", "Birleşik": "birlesik"}
+MODE_LABELS = {"Uzantıya göre": "uzanti", "Tarihe göre": "tarih", "Birleşik": "birlesik",
+               "Olduğu gibi": "yapi"}
 MODE_HINTS = {
     "uzanti": "Resimler, Belgeler, Videolar… gibi kategorilere ayırır.",
     "tarih": "Dosyayı değiştirilme tarihine göre yıl/ay klasörlerine koyar.",
     "birlesik": "Önce kategori, sonra tarih: Resimler/2026/10",
+    "yapi": "Klasör yapısını alt klasörleriyle olduğu gibi listeler; hiçbir dosya taşınmaz.",
 }
 OPEN_ALL_LIMIT = 400  # bu kadar dosyadan fazlaysa gruplar kapalı başlar
+PLAN_COLUMNS = ("size", "here", "dest")
 
 
 def human_size(n: int) -> str:
@@ -34,6 +40,10 @@ def human_size(n: int) -> str:
             return f"{int(size)} B" if unit == "B" else f"{size:.1f} {unit}"
         size /= 1024
     return f"{n} B"
+
+
+def fmt_date(ts: float) -> str:
+    return datetime.fromtimestamp(ts).strftime("%d.%m.%Y %H:%M")
 
 
 class OrganizerPage(ctk.CTkFrame):
@@ -47,8 +57,12 @@ class OrganizerPage(ctk.CTkFrame):
         self.date_var = ctk.StringVar(value=self.cfg.get("date_format", DEFAULT_DATE_FORMAT))
         self.recursive_var = ctk.BooleanVar(value=False)
         self.view: PlanView | None = None
+        self.struct: tuple | None = None       # ("Olduğu gibi" modu) (kök, dosyalar, klasörler, kesildi)
+        self.root: Path | None = None
         self.expanded: dict[str, bool] = {}
+        self.is_new: dict[str, bool] = {}      # hedef klasör yeni mi oluşturulacak, zaten var mı
         self._note = ""
+        self._scan_id = 0
         self._filter_job: str | None = None
         self.watcher: Watcher | None = None
         self.messages: queue.Queue[str] = queue.Queue()
@@ -60,6 +74,7 @@ class OrganizerPage(ctk.CTkFrame):
         tabs.pack(fill="both", expand=True, pady=(6, 0))
         self._build_organize(tabs.add("Düzenle"))
         self._build_watch(tabs.add("İzle"))
+        self._mode_ui()
 
         hub.on_close.append(self._shutdown)
         self.after(250, self._drain_messages)
@@ -83,19 +98,21 @@ class OrganizerPage(ctk.CTkFrame):
                                command=self._mode_changed).pack(side="left")
         self.hint = ctk.CTkLabel(row2, text=MODE_HINTS[self._mode_key()], text_color=MUTED)
         self.hint.pack(side="left", padx=14)
-        date = ctk.CTkEntry(row2, textvariable=self.date_var, width=90, height=30)
-        date.pack(side="right")
-        date.bind("<FocusOut>", lambda _e: self._reset_preview())
+        self.date_entry = ctk.CTkEntry(row2, textvariable=self.date_var, width=90, height=30)
+        self.date_entry.pack(side="right")
+        self.date_entry.bind("<FocusOut>", lambda _e: self._reset_preview())
         ctk.CTkLabel(row2, text="Tarih biçimi", text_color=MUTED).pack(side="right", padx=8)
 
     # ---------- Düzenle sekmesi ----------
     def _build_organize(self, tab) -> None:
         opts = ctk.CTkFrame(tab, fg_color="transparent")
         opts.pack(fill="x", pady=(4, 0))
-        ctk.CTkButton(opts, text="🔍  Önizle", width=120, height=36, fg_color=ACCENT,
-                      hover_color=ACCENT_HOVER, command=self.preview).pack(side="left")
-        ctk.CTkSwitch(opts, text="Alt klasörleri de tara", variable=self.recursive_var,
-                      progress_color=ACCENT).pack(side="left", padx=16)
+        self.preview_btn = ctk.CTkButton(opts, text="🔍  Önizle", width=120, height=36, fg_color=ACCENT,
+                                         hover_color=ACCENT_HOVER, command=self.preview)
+        self.preview_btn.pack(side="left")
+        self.rec_switch = ctk.CTkSwitch(opts, text="Alt klasörleri de tara", variable=self.recursive_var,
+                                        progress_color=ACCENT)
+        self.rec_switch.pack(side="left", padx=16)
         ghost_button(opts, "↩  Geri al", self.undo, width=110, danger=True).pack(side="right")
 
         # alt çubuk önce paketlenir: pencere küçülünce liste daralır, bu çubuk kaybolmaz
@@ -107,9 +124,13 @@ class OrganizerPage(ctk.CTkFrame):
                                        fg_color=OK, hover_color=OK_HOVER, state="disabled", command=self.apply)
         self.apply_btn.pack(side="right")
 
-        # seçim araç çubuğu
+        # nereye taşınacağını açıkça söyleyen çubuk
+        self.dest_info = ctk.CTkLabel(tab, text="", anchor="w", justify="left", wraplength=800,
+                                      text_color=("#3730a3", "#a5b4fc"), font=ctk.CTkFont(size=13, weight="bold"))
+        self.dest_info.pack(fill="x", pady=(10, 0))
+
         bar = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=12)
-        bar.pack(fill="x", pady=(10, 8))
+        bar.pack(fill="x", pady=(6, 8))
         self.filter_entry = ctk.CTkEntry(bar, height=34, corner_radius=8,
                                          placeholder_text="🔎  Filtrele: ad, uzantı veya klasör…")
         self.filter_entry.pack(side="left", fill="x", expand=True, padx=(10, 8), pady=8)
@@ -118,24 +139,23 @@ class OrganizerPage(ctk.CTkFrame):
             ghost_button(bar, "☑ Görünenleri seç", lambda: self._bulk("select"), width=136),
             ghost_button(bar, "☐ Kaldır", lambda: self._bulk("clear"), width=84),
             ghost_button(bar, "⇄ Ters çevir", lambda: self._bulk("invert"), width=104),
-            ghost_button(bar, "⇕ Aç / kapat", self._toggle_all_groups, width=104),
         ]
-        for b in self.bulk_buttons:
+        self.toggle_btn = ghost_button(bar, "⇕ Aç / kapat", self._toggle_all_groups, width=104)
+        for b in (*self.bulk_buttons, self.toggle_btn):
             b.pack(side="left", padx=(0, 6), pady=8)
-        bar.winfo_children()[-1].pack_configure(padx=(0, 10))
+        self.toggle_btn.pack_configure(padx=(0, 10))
 
         table_card = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
         table_card.pack(fill="both", expand=True)
         table_card.grid_columnconfigure(0, weight=1)
         table_card.grid_rowconfigure(0, weight=1)
-        self.tree = ttk.Treeview(table_card, columns=("size", "dest"), show="tree headings",
+        self.tree = ttk.Treeview(table_card, columns=PLAN_COLUMNS, show="tree headings",
                                  style="Duz.Treeview", selectmode="browse")
-        self.tree.heading("#0", text="Dosya   (satıra tıkla: seç / kaldır)", anchor="w")
-        self.tree.heading("size", text="Boyut", anchor="e")
-        self.tree.heading("dest", text="Yeni konum  →", anchor="w")
-        self.tree.column("#0", width=360, anchor="w")
-        self.tree.column("size", width=90, anchor="e", stretch=False)
-        self.tree.column("dest", width=330, anchor="w")
+        self.tree.column("#0", width=380, anchor="w")
+        self.tree.column("size", width=80, anchor="e", stretch=False)
+        self.tree.column("here", width=130, anchor="w")
+        self.tree.column("dest", width=230, anchor="w")
+        self._set_headings(structure=False)
         sb = ctk.CTkScrollbar(table_card, command=self.tree.yview)
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.grid(row=0, column=0, sticky="nsew", padx=(10, 0), pady=10)
@@ -147,15 +167,35 @@ class OrganizerPage(ctk.CTkFrame):
         self.empty_label = ctk.CTkLabel(table_card, text="Önizle'ye basarak neyin nereye taşınacağını gör.",
                                         text_color=MUTED)
         self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
+        self.spinner = Spinner(table_card)
         self._set_toolbar(False)
 
-    def _set_toolbar(self, enabled: bool) -> None:
-        state = "normal" if enabled else "disabled"
-        self.filter_entry.configure(state=state)
-        for b in self.bulk_buttons:
-            b.configure(state=state)
+    def _set_headings(self, structure: bool) -> None:
+        self.tree.column("#0", width=560 if structure else 380)
+        if structure:
+            self.tree.heading("#0", text="Ad", anchor="w")
+            self.tree.heading("size", text="Boyut", anchor="e")
+            self.tree.heading("here", text="Değiştirilme", anchor="w")
+            self.tree.configure(displaycolumns=("size", "here"))
+        else:
+            self.tree.heading("#0", text="Dosya   (satıra tıkla: seç / kaldır)", anchor="w")
+            self.tree.heading("size", text="Boyut", anchor="e")
+            self.tree.heading("here", text="Şu anki yeri", anchor="w")
+            self.tree.heading("dest", text="Taşınacağı yer  →", anchor="w")
+            self.tree.configure(displaycolumns=PLAN_COLUMNS)
 
-    # ---------- liste: çizim ve eşitleme ----------
+    def _set_toolbar(self, enabled: bool, bulk: bool = True) -> None:
+        self.filter_entry.configure(state="normal" if enabled else "disabled")
+        for b in self.bulk_buttons:
+            b.configure(state="normal" if enabled and bulk else "disabled")
+        self.toggle_btn.configure(state="normal" if enabled else "disabled")
+
+    def _mode_ui(self) -> None:
+        yapi = self._mode_key() == "yapi"
+        self.rec_switch.configure(state="disabled" if yapi else "normal")
+        self.preview_btn.configure(text="🔍  Listele" if yapi else "🔍  Önizle")
+
+    # ---------- liste: çizim ve eşitleme (taşıma planı) ----------
     def _style_tags(self) -> None:
         dark = ctk.get_appearance_mode() == "Dark"
         self.tree.tag_configure("group", background="#2a2f45" if dark else "#e0e7ff",
@@ -163,11 +203,15 @@ class OrganizerPage(ctk.CTkFrame):
         self.tree.tag_configure("on", foreground="#e5e7eb" if dark else "#1f2937")
         self.tree.tag_configure("off", foreground="#6b7280" if dark else "#9ca3af")
 
-    @staticmethod
-    def _group_text(name: str, items: list[Item], checked: set[int]) -> str:
+    def _group_text(self, name: str, items: list[Item], checked: set[int]) -> str:
         on = sum(it.idx in checked for it in items)
         glyph = "☑" if on == len(items) else "☐" if on == 0 else "▣"
-        return f"{glyph}  📂 {name}\\    ·    {on} / {len(items)} dosya seçili"
+        kind = "yeni klasör" if self.is_new.get(name, True) else "mevcut klasör"
+        return f"{glyph}  📂 {name}\\  ({kind})  ·  {on} / {len(items)}"
+
+    @staticmethod
+    def _here(it: Item) -> str:
+        return "(ana klasör)" if it.src_dir == "." else it.src_dir + "\\"
 
     def _render(self) -> None:
         """Planı hedef klasörlere göre gruplayıp baştan çizer (plan veya filtre değişince)."""
@@ -175,18 +219,20 @@ class OrganizerPage(ctk.CTkFrame):
         if view is None:
             return
         self._style_tags()
+        self._set_headings(structure=False)
         self.tree.delete(*self.tree.get_children())
         groups = view.groups()
         default_open = sum(len(items) for _, items in groups) <= OPEN_ALL_LIMIT
         for name, items in groups:
             gid = f"g:{name}"
+            self.is_new.setdefault(name, not (self.root / name).exists())
             size = sum(it.size for it in items)
             self.tree.insert("", "end", iid=gid, text=self._group_text(name, items, view.checked),
-                             values=(human_size(size), ""), open=self.expanded.get(gid, default_open),
-                             tags=("group",))
+                             values=(human_size(size), "", "←  dosyalar buraya taşınacak"),
+                             open=self.expanded.get(gid, default_open), tags=("group",))
             for it in items:
                 self.tree.insert(gid, "end", iid=f"f:{it.idx}", text=f"☑  {it.name}",
-                                 values=(human_size(it.size), "→  " + it.new_rel), tags=("on",))
+                                 values=(human_size(it.size), self._here(it), "→  " + it.new_rel), tags=("on",))
         self._sync()
 
     def _sync(self) -> None:
@@ -203,10 +249,17 @@ class OrganizerPage(ctk.CTkFrame):
                 self.tree.item(f"f:{it.idx}", text=f"{'☑' if on else '☐'}  {it.name}",
                                tags=("on" if on else "off",))
         total, sel = len(view.items), len(view.checked)
-        dirs = view.selected_group_count()
+        groups = {it.group for it in view.selected_items()}
+        new = sum(1 for g in groups if self.is_new.get(g, True))
         self.apply_btn.configure(text=f"✓  Seçilen {sel} dosyayı düzenle" if sel else "✓  Dosya seçilmedi",
                                  state="normal" if sel else "disabled")
-        text = f"{sel} / {total} dosya seçili ({human_size(view.selected_bytes())})  →  {dirs} hedef klasör"
+        if sel:
+            self.dest_info.configure(
+                text=f"📍 Taşınacağı yer: {self.root}\\   —   seçilen dosyalar bu klasörün içindeki "
+                     f"{len(groups)} alt klasöre taşınır ({new} yeni oluşturulur, {len(groups) - new} zaten var)")
+        else:
+            self.dest_info.configure(text="📍 Hiçbir dosya seçili değil; taşınacak bir şey yok.")
+        text = f"{sel} / {total} dosya seçili ({human_size(view.selected_bytes())})"
         hidden = view.hidden_selected()
         if hidden:
             text += f"   ·   {hidden} seçili dosya filtre nedeniyle gizli (yine de taşınır)"
@@ -214,9 +267,42 @@ class OrganizerPage(ctk.CTkFrame):
             text += f"   ·   {len(view.visible())} dosya gösteriliyor"
         self.status.configure(text=(self._note + "   " if self._note else "") + text)
 
+    # ---------- liste: çizim ("Olduğu gibi" modu) ----------
+    def _render_structure(self) -> None:
+        if self.struct is None:
+            return
+        root, files, dirs, truncated = self.struct
+        self._style_tags()
+        self._set_headings(structure=True)
+        self.tree.delete(*self.tree.get_children())
+        top = build_tree(root, files, dirs, self.filter_entry.get())
+        default_open = top.file_count <= OPEN_ALL_LIMIT
+
+        def add(parent: str, node) -> None:
+            for ch in node.children:
+                if ch.is_dir:
+                    iid = f"d:{ch.path}"
+                    self.tree.insert(parent, "end", iid=iid, text=f"📂  {ch.name}   ·   {ch.file_count} dosya",
+                                     values=(human_size(ch.size), "", ""), tags=("group",),
+                                     open=self.expanded.get(iid, default_open))
+                    add(iid, ch)
+                else:
+                    self.tree.insert(parent, "end", iid=f"x:{ch.path}", text=f"📄  {ch.name}",
+                                     values=(human_size(ch.size), fmt_date(ch.mtime), ""), tags=("on",))
+
+        add("", top)
+        folders = sum(1 for _ in self._all_nodes() if self.tree.get_children(_) or _.startswith("d:"))
+        text = f"{top.file_count} dosya, {folders} klasör ({human_size(top.size)})"
+        if truncated:
+            text += f"   ·   ilk {len(files)} dosya gösteriliyor (klasör çok büyük)"
+        if self.filter_entry.get().strip():
+            text += "   ·   filtre uygulandı"
+        self.dest_info.configure(text=f"📂 {root}   —   olduğu gibi listeleniyor, hiçbir dosya taşınmaz")
+        self.status.configure(text=(self._note + "   " if self._note else "") + text)
+
     # ---------- liste: etkileşim ----------
     def _on_click(self, event):
-        if self.view is None:
+        if self.view is None:  # listeleme modunda tıklama yalnızca satırı seçer
             return None
         if self.tree.identify_region(event.x, event.y) not in ("tree", "cell"):
             return None  # başlık vb.
@@ -243,17 +329,22 @@ class OrganizerPage(ctk.CTkFrame):
 
     def _remember_open(self, is_open: bool) -> None:
         iid = self.tree.focus()
-        if iid.startswith("g:"):
+        if iid.startswith(("g:", "d:")):
             self.expanded[iid] = is_open
 
+    def _all_nodes(self, parent: str = ""):
+        for iid in self.tree.get_children(parent):
+            yield iid
+            yield from self._all_nodes(iid)
+
     def _toggle_all_groups(self) -> None:
-        groups = [g for g in self.tree.get_children()]
-        if not groups:
+        parents = [i for i in self._all_nodes() if self.tree.get_children(i)]
+        if not parents:
             return
-        target = not any(self.tree.item(g, "open") for g in groups)
-        for g in groups:
-            self.tree.item(g, open=target)
-            self.expanded[g] = target
+        target = not any(self.tree.item(i, "open") for i in parents)
+        for i in parents:
+            self.tree.item(i, open=target)
+            self.expanded[i] = target
 
     def _bulk(self, kind: str) -> None:
         if self.view is None:
@@ -272,6 +363,8 @@ class OrganizerPage(ctk.CTkFrame):
         if self.view is not None:
             self.view.query = self.filter_entry.get()
             self._render()
+        elif self.struct is not None:
+            self._render_structure()
 
     # ---------- davranış ----------
     def _mode_key(self) -> str:
@@ -282,6 +375,7 @@ class OrganizerPage(ctk.CTkFrame):
 
     def _mode_changed(self, _value=None) -> None:
         self.hint.configure(text=MODE_HINTS[self._mode_key()])
+        self._mode_ui()
         self._reset_preview()
 
     def browse(self) -> None:
@@ -298,15 +392,22 @@ class OrganizerPage(ctk.CTkFrame):
         return folder
 
     def _reset_preview(self) -> None:
+        self._scan_id += 1          # bekleyen taramanın sonucu artık yok sayılır
+        self.spinner.stop()
         self.view = None
+        self.struct = None
+        self.root = None
         self.expanded.clear()
+        self.is_new.clear()
         self._note = ""
         self.tree.delete(*self.tree.get_children())
+        self._set_headings(structure=False)
         self.empty_label.configure(text="Önizle'ye basarak neyin nereye taşınacağını gör.")
         self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
         self.apply_btn.configure(text="✓  Seçilenleri düzenle", state="disabled")
         self.filter_entry.delete(0, "end")
         self._set_toolbar(False)
+        self.dest_info.configure(text="📍 Taşınacağı klasör, önizlemeden sonra burada görünecek.")
         self.status.configure(text="")
 
     def preview(self, note: str = "") -> None:
@@ -314,11 +415,17 @@ class OrganizerPage(ctk.CTkFrame):
         if not folder:
             return
         self._reset_preview()
-        self.status.configure(text="Taranıyor…")
+        sid = self._scan_id
         mode, fmt, rec = self._mode_key(), self._date_format(), self.recursive_var.get()
+        self.empty_label.place_forget()
+        self.spinner.start("Klasör yapısı okunuyor…" if mode == "yapi" else "Dosyalar taranıyor…")
 
         def work():
             try:
+                if mode == "yapi":
+                    data = list_entries(folder)
+                    self.after(0, lambda: self._show_structure(sid, folder, data, note))
+                    return
                 plan = engine.plan(folder, mode, fmt, rec)
                 sizes = {}
                 for m in plan:
@@ -326,22 +433,49 @@ class OrganizerPage(ctk.CTkFrame):
                         sizes[m.src] = m.src.stat().st_size
                     except OSError:
                         pass
-                self.after(0, lambda: self._show_plan(folder, plan, sizes, note))
+                self.after(0, lambda: self._show_plan(sid, folder, plan, sizes, note))
             except Exception as e:
-                self.after(0, lambda: self.status.configure(text=f"Hata: {e}"))
+                self.after(0, lambda: self._scan_failed(sid, e))
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _show_plan(self, folder: Path, plan: list[engine.Move], sizes: dict, note: str) -> None:
+    def _scan_failed(self, sid: int, error: Exception) -> None:
+        if sid != self._scan_id:
+            return
+        self.spinner.stop()
+        self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
+        self.status.configure(text=f"Hata: {error}")
+
+    def _show_plan(self, sid: int, folder: Path, plan: list[engine.Move], sizes: dict, note: str) -> None:
+        if sid != self._scan_id:
+            return
+        self.spinner.stop()
         if not plan:
             self.empty_label.configure(text="Düzenlenecek dosya yok. Klasör zaten düzenli görünüyor.")
+            self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
             self.status.configure(text=(note + "   " if note else "") + "Düzenlenecek dosya yok.")
             return
+        self.root = folder.resolve()
         self.view = PlanView(folder, plan, sizes)
         self._note = note
-        self.empty_label.place_forget()
         self._set_toolbar(True)
         self._render()
+
+    def _show_structure(self, sid: int, folder: Path, data: tuple, note: str) -> None:
+        if sid != self._scan_id:
+            return
+        self.spinner.stop()
+        files, dirs, truncated = data
+        if not files and not dirs:
+            self.empty_label.configure(text="Klasör boş.")
+            self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
+            return
+        self.root = folder
+        self.struct = (folder, files, dirs, truncated)
+        self._note = note
+        self._set_toolbar(True, bulk=False)
+        self.apply_btn.configure(text="Yalnızca listeleme (taşıma yok)", state="disabled")
+        self._render_structure()
 
     def apply(self) -> None:
         folder = self._folder()
@@ -351,16 +485,19 @@ class OrganizerPage(ctk.CTkFrame):
         moves = view.selected_moves()
         if not moves:
             return
+        by = Counter(it.group for it in view.selected_items())
+        lines = "\n".join(f"   •  {g}\\   ←  {n} dosya" for g, n in sorted(by.items())[:10])
+        more = f"\n   … ve {len(by) - 10} klasör daha" if len(by) > 10 else ""
         left = len(view.items) - len(moves)
-        msg = (f"{len(moves)} dosya, {view.selected_group_count()} hedef klasöre taşınacak "
-               f"({human_size(view.selected_bytes())}).")
+        msg = (f"Şu klasörün içine taşınacak:\n{self.root}\n\n{lines}{more}\n\n"
+               f"Toplam {len(moves)} dosya ({human_size(view.selected_bytes())}).")
         if left:
             msg += f"\n{left} dosya yerinde kalacak."
         msg += "\n\nGeri al ile bu işlemi sonra geri alabilirsin.\nDevam edilsin mi?"
-        if not messagebox.askyesno("Onay", msg):
+        if not messagebox.askyesno("Taşımayı onayla", msg):
             return
         self.apply_btn.configure(state="disabled")
-        self.status.configure(text="Taşınıyor…")
+        self.spinner.start("Dosyalar taşınıyor…")
 
         def work():
             done, failed = engine.apply(folder, moves)
@@ -409,6 +546,10 @@ class OrganizerPage(ctk.CTkFrame):
             self.watcher = None
             self._watch_ui(False)
             return
+        if self._mode_key() == "yapi":
+            messagebox.showinfo("İzleme", "İzleme dosya taşır. Yukarıdan 'Uzantıya göre', 'Tarihe göre' "
+                                          "veya 'Birleşik' modunu seç; 'Olduğu gibi' yalnızca listeler.")
+            return
         folder = self._folder()
         if not folder:
             return
@@ -452,7 +593,7 @@ TOOL = ToolInfo(
     id="duzenleyici",
     name="Dosya Düzenleyici",
     icon="📁",
-    description="Klasörü uzantıya veya tarihe göre otomatik düzenler; istediğin dosyaları seçip yerleştirir.",
+    description="Klasörü türe veya tarihe göre düzenler, yapısını olduğu gibi listeler; istediğin dosyaları seçip taşır.",
     build=lambda parent, hub: OrganizerPage(parent, hub),
     order=10,
 )

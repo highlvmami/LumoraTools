@@ -1,6 +1,7 @@
 """Ortak arayüz parçaları ve renk paleti."""
 from __future__ import annotations
 
+import tkinter as tk
 from tkinter import ttk
 
 import customtkinter as ctk
@@ -29,6 +30,52 @@ class StatCard(ctk.CTkFrame):
 
     def set(self, value) -> None:
         self.value.configure(text=str(value))
+
+
+class Spinner(ctk.CTkFrame):
+    """Üst widget'ın ortasında dönen yükleme göstergesi (start/stop ile gösterilir/gizlenir)."""
+    SIZE = 56
+
+    def __init__(self, master, text: str = "Yükleniyor…") -> None:
+        super().__init__(master, fg_color=("#eef0fb", "#2a2f45"), corner_radius=16)
+        self._canvas = tk.Canvas(self, width=self.SIZE, height=self.SIZE, highlightthickness=0, bd=0)
+        self._canvas.pack(padx=40, pady=(24, 8))
+        pad = 6
+        box = (pad, pad, self.SIZE - pad, self.SIZE - pad)
+        self._track = self._canvas.create_oval(*box, width=5)
+        self._arc = self._canvas.create_arc(*box, start=90, extent=100, style="arc", width=5)
+        self._label = ctk.CTkLabel(self, text=text, text_color=MUTED)
+        self._label.pack(padx=40, pady=(0, 22))
+        self._angle = 90
+        self._job: str | None = None
+
+    def _paint(self) -> None:
+        dark = ctk.get_appearance_mode() == "Dark"
+        self._canvas.configure(bg="#2a2f45" if dark else "#eef0fb")
+        self._canvas.itemconfigure(self._track, outline="#3d4466" if dark else "#d3d8f0")
+        self._canvas.itemconfigure(self._arc, outline="#818cf8" if dark else "#4f46e5")
+
+    def start(self, text: str | None = None) -> None:
+        if text:
+            self._label.configure(text=text)
+        self._paint()
+        self.place(relx=0.5, rely=0.5, anchor="center")
+        self.lift()
+        if self._job is None:
+            self._tick()
+
+    def stop(self) -> None:
+        if self._job is not None:
+            self.after_cancel(self._job)
+            self._job = None
+        self.place_forget()
+
+    def _tick(self) -> None:
+        if not self.winfo_exists():
+            return
+        self._angle = (self._angle - 14) % 360
+        self._canvas.itemconfigure(self._arc, start=self._angle)
+        self._job = self.after(30, self._tick)
 
 
 def page_header(parent, title: str, subtitle: str) -> None:

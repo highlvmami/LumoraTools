@@ -84,3 +84,10 @@ def test_new_rel_shows_destination_including_conflict_rename():
     moves = [Move(ROOT / "a.jpg", ROOT / "Resimler" / "a (1).jpg")]
     it = PlanView(ROOT, moves).items[0]
     assert it.group == "Resimler" and it.new_rel.endswith("a (1).jpg") and it.new_rel.startswith("Resimler")
+
+
+def test_src_dir_shows_where_file_is_now():
+    moves = [Move(ROOT / "a.jpg", ROOT / "Resimler" / "a.jpg"),
+             Move(ROOT / "alt" / "klasor" / "b.jpg", ROOT / "Resimler" / "b.jpg")]
+    items = PlanView(ROOT, moves).items
+    assert items[0].src_dir == "." and items[1].src_dir == str(Path("alt") / "klasor")
