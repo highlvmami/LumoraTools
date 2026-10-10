@@ -3,7 +3,7 @@ name = "dosya-duzenleyici"
 version = "0.1.0"
 description = "Klasörü uzantıya veya tarihe göre otomatik düzenler"
 requires-python = ">=3.10"
-dependencies = ["customtkinter>=5.2", "pypdf>=4"]
+dependencies = ["customtkinter>=5.2", "pypdf>=4", "pillow>=10"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

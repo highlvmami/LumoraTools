@@ -21,6 +21,11 @@ class ClipboardMonitor:
         if self._job is None:
             self._poll()
 
+    def resume(self) -> None:
+        """Durdurulmuş izleyiciyi yeniden başlatır; durmuşken kopyalananlar kaydedilmez."""
+        self._last = self._read()
+        self.start()
+
     def stop(self) -> None:
         if self._job is not None:
             self.widget.after_cancel(self._job)

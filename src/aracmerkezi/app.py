@@ -13,6 +13,7 @@ from typing import Callable
 import customtkinter as ctk
 
 from . import __version__, _buildinfo, registry, ui, updater
+from .menu_editor import MenuEditor
 from .ui import ACCENT, ACCENT_HOVER, BG, CARD, MUTED, OK, SIDEBAR, TEXT
 
 
@@ -31,7 +32,11 @@ class Hub(ctk.CTk):
         self.data_dir = Path(data_dir) if data_dir else Path(default_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings = self._load_settings()
-        self.tools = tools if tools is not None else registry.discover()
+        self.all_tools = tools if tools is not None else registry.discover()
+        self.menu_tools: list[registry.ToolInfo] = []  # kullanıcının sırasıyla hepsi (gizliler dahil)
+        self.tools: list[registry.ToolInfo] = []       # kullanıcının sırasıyla yalnızca görünenler
+        self._started: set[str] = set()
+        self._refresh_menu_lists()
         self.services: dict[str, object] = {}
         self.on_close: list[Callable[[], None]] = []
         self.pages: dict[str, ctk.CTkFrame] = {}
@@ -123,9 +128,20 @@ class Hub(ctk.CTk):
         self._nav_button(bar, "home", "🏠  Ana sayfa")
         ctk.CTkLabel(bar, text="ARAÇLAR", text_color=MUTED, font=ctk.CTkFont(size=11, weight="bold")).pack(
             anchor="w", padx=22, pady=(14, 4))
-        for t in self.tools:
-            self._nav_button(bar, t.id, f"{t.icon}  {t.name}")
+        self.tool_nav = ctk.CTkFrame(bar, fg_color="transparent")
+        self.tool_nav.pack(fill="x")
+        self._populate_nav()
         self._nav_button(bar, "settings", "⚙  Ayarlar", bottom=True)
+
+    def _populate_nav(self) -> None:
+        for w in self.tool_nav.winfo_children():
+            w.destroy()
+        for k in [k for k in self.nav if k not in ("home", "settings")]:
+            del self.nav[k]
+        for t in self.tools:
+            self._nav_button(self.tool_nav, t.id, f"{t.icon}  {t.name}")
+        if self.current in self.nav:
+            self.nav[self.current].configure(fg_color=ACCENT, text_color="#ffffff")
 
     def _nav_button(self, bar, key: str, label: str, bottom: bool = False) -> None:
         b = ctk.CTkButton(bar, text=label, anchor="w", height=40, corner_radius=10, fg_color="transparent",
@@ -139,7 +155,7 @@ class Hub(ctk.CTk):
             return self._build_home()
         if key == "settings":
             return self._build_settings()
-        tool = next(t for t in self.tools if t.id == key)
+        tool = next(t for t in self.all_tools if t.id == key)
         return tool.build(self.content, self)
 
     def show(self, key: str) -> None:
@@ -147,7 +163,8 @@ class Hub(ctk.CTk):
             return
         if self.current:
             self.pages[self.current].grid_forget()
-            self.nav[self.current].configure(fg_color="transparent", text_color=TEXT)
+            if self.current in self.nav:
+                self.nav[self.current].configure(fg_color="transparent", text_color=TEXT)
         if key not in self.pages:
             self.pages[key] = self._page_for(key)
         self.pages[key].grid(row=1, column=0, sticky="nsew")
@@ -174,8 +191,8 @@ class Hub(ctk.CTk):
         return page
 
     def _build_settings(self) -> ctk.CTkFrame:
-        page = ctk.CTkFrame(self.content, fg_color="transparent")
-        ui.page_header(page, "Ayarlar", "Tüm araçlar için ortak görünüm.")
+        page = ctk.CTkScrollableFrame(self.content, fg_color="transparent")
+        ui.page_header(page, "Ayarlar", "Tüm araçlar için ortak görünüm ve menü.")
         card = ctk.CTkFrame(page, fg_color=CARD, corner_radius=14)
         card.pack(fill="x")
         ctk.CTkLabel(card, text="Tema").pack(side="left", padx=18, pady=18)
@@ -183,9 +200,63 @@ class Hub(ctk.CTk):
                                      selected_hover_color=ACCENT_HOVER, command=self._theme_changed)
         seg.pack(side="left", padx=8)
         seg.set({v: k for k, v in THEMES.items()}.get(self.settings.get("theme", "dark"), "Koyu"))
+        self._build_menu_settings(page)
         self._build_update_settings(page)
         ctk.CTkLabel(page, text=f"Veriler: {self.data_dir}", text_color=MUTED).pack(anchor="w", pady=12)
         return page
+
+    # ---------- menü düzeni ----------
+    @property
+    def menu_cfg(self) -> dict:
+        return self.settings.setdefault("menu", {})
+
+    def _refresh_menu_lists(self) -> None:
+        self.menu_tools, self.tools = registry.order_tools(
+            self.all_tools, self.menu_cfg.get("order"), set(self.menu_cfg.get("hidden", [])))
+
+    def _build_menu_settings(self, page) -> None:
+        card = ctk.CTkFrame(page, fg_color=CARD, corner_radius=14)
+        card.pack(fill="x", pady=(14, 0))
+        head = ctk.CTkFrame(card, fg_color="transparent")
+        head.pack(fill="x", padx=18, pady=(16, 0))
+        ctk.CTkLabel(head, text="Menüyü düzenle", font=ctk.CTkFont(size=15, weight="bold")).pack(side="left")
+        ui.ghost_button(head, "Varsayılana dön", self.reset_menu, width=130).pack(side="right")
+        ctk.CTkLabel(card, text="Araçları ⠿ tutamacından sürükleyerek sırala; anahtarla menüden gizle veya göster. "
+                                "Gizlenen aracın arka plan işi (ör. pano kaydı) de durur.",
+                     text_color=MUTED, anchor="w", wraplength=700, justify="left").pack(fill="x", padx=18, pady=(2, 10))
+        self.menu_editor = MenuEditor(
+            card, entries=[(t.id, f"{t.icon}  {t.name}") for t in self.menu_tools],
+            order=[t.id for t in self.menu_tools], hidden=set(self.menu_cfg.get("hidden", [])),
+            on_change=self.set_menu)
+        self.menu_editor.pack(fill="x", padx=14, pady=(0, 14))
+
+    def set_menu(self, order: list[str], hidden: set[str]) -> None:
+        """Yeni menü sırası/görünürlüğünü kaydeder ve kenar çubuğu ile ana sayfayı günceller."""
+        was_visible = {t.id for t in self.tools}
+        self.menu_cfg.update(order=list(order), hidden=sorted(hidden))
+        self._refresh_menu_lists()
+        now_visible = {t.id for t in self.tools}
+        self._populate_nav()
+        for t in self.all_tools:  # gizlenen aracın arka plan işi durur, geri gelenin başlar
+            if t.id in was_visible and t.id not in now_visible and t.stop:
+                t.stop(self)
+                self._started.discard(t.id)
+            elif t.id in now_visible and t.id not in was_visible:
+                self._start_tool(t)
+        home = self.pages.pop("home", None)  # ana sayfa kartları yeni sırayla yeniden çizilsin
+        if home is not None:
+            home.destroy()
+        if self.current == "home" or (self.current not in now_visible and self.current != "settings"):
+            if self.current in self.pages:
+                self.pages[self.current].grid_forget()
+            self.current = None
+            self.show("home")
+
+    def reset_menu(self) -> None:
+        ordered, _ = registry.order_tools(self.all_tools, None, None)
+        ids = [t.id for t in ordered]
+        self.menu_editor.set_state(ids, set())
+        self.set_menu(ids, set())
 
     # ---------- güncelleme ----------
     @property
@@ -342,12 +413,16 @@ class Hub(ctk.CTk):
 
     # ---------- yaşam döngüsü ----------
     def _start_tools(self) -> None:
-        for t in self.tools:
-            if t.start:
-                try:
-                    t.start(self)
-                except Exception as e:
-                    print(f"{t.name} başlatılamadı: {e}")
+        for t in self.tools:  # gizli araçlar arka planda çalışmaz
+            self._start_tool(t)
+
+    def _start_tool(self, t: registry.ToolInfo) -> None:
+        if t.start and t.id not in self._started:
+            try:
+                t.start(self)
+                self._started.add(t.id)
+            except Exception as e:
+                self.log("error", f"{t.name} başlatılamadı: {e}")
 
     def _close(self) -> None:
         for fn in self.on_close:
@@ -361,6 +436,14 @@ class Hub(ctk.CTk):
         self.destroy()
 
 
+def _pillow_version() -> str:
+    try:
+        import PIL
+        return PIL.__version__
+    except ImportError:
+        return "yok"
+
+
 def main(argv: list[str] | None = None) -> None:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["--selftest"]:
@@ -368,7 +451,8 @@ def main(argv: list[str] | None = None) -> None:
         tools = registry.discover()
         report = (f"version={__version__}\nfrozen={updater.is_frozen()}\n"
                   f"tools={','.join(t.id for t in tools)}\n"
-                  f"errors={' | '.join(registry.load_errors) or '-'}\n")
+                  f"errors={' | '.join(registry.load_errors) or '-'}\n"
+                  f"pillow={_pillow_version()}\n")
         if len(argv) > 1:
             Path(argv[1]).write_text(report, encoding="utf-8")
         else:

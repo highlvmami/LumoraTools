@@ -26,6 +26,7 @@ class Watcher:
         on_message: Callback = print,
         interval: float = 1.5,
         settle: float = 3.0,
+        extensions: set[str] | None = None,
     ) -> None:
         self.folder = folder.resolve()
         self.mode = mode
@@ -33,6 +34,7 @@ class Watcher:
         self.on_message = on_message
         self.interval = interval
         self.settle = settle
+        self.extensions = {e.lower() for e in extensions} if extensions else None  # None = tüm dosyalar
         self.moved_count = 0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -72,6 +74,8 @@ class Watcher:
             if now - since >= self.settle:
                 settled.add(f)
         self._seen = current
+        if self.extensions:
+            settled = {p for p in settled if p.suffix.lower() in self.extensions}
         if not settled:
             return
         moves = engine.plan(self.folder, self.mode, self.date_format, only=settled)

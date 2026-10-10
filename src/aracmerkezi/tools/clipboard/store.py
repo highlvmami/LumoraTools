@@ -45,12 +45,18 @@ class ClipStore:
         self.db.commit()
         return True
 
-    def list(self, query: str = "", limit: int = 500) -> list[Clip]:
-        """Sabitlenenler önce, sonra en yeniden eskiye. Türkçe harf duyarsız arama."""
+    def list(self, query: str = "", limit: int = 500, since: float | None = None,
+             until: float | None = None) -> list[Clip]:
+        """Sabitlenenler önce, sonra en yeniden eskiye. Türkçe harf duyarsız arama.
+
+        `since` (dahil) ve `until` (dahil değil) zaman damgalarıyla tarihe göre daraltır.
+        """
         needle = fold(query.strip())
         out: list[Clip] = []
         for id_, text, ts, pinned in self.db.execute(
-                "SELECT id, text, ts, pinned FROM clips ORDER BY pinned DESC, ts DESC"):
+                "SELECT id, text, ts, pinned FROM clips "
+                "WHERE (?1 IS NULL OR ts >= ?1) AND (?2 IS NULL OR ts < ?2) "
+                "ORDER BY pinned DESC, ts DESC", (since, until)):
             if needle and needle not in fold(text):
                 continue
             out.append(Clip(id_, text, ts, bool(pinned)))

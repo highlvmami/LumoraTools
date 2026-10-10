@@ -7,6 +7,7 @@ import customtkinter as ctk
 
 from ... import ui
 from ...ui import ACCENT, ACCENT_HOVER, CARD, MUTED, OK, StatCard, ghost_button, make_tree
+from ...date_bar import DateFilterBar
 from .monitor import ClipboardMonitor
 from .store import Clip, ClipStore
 
@@ -43,7 +44,7 @@ class ClipboardPage(ctk.CTkFrame):
         top = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14)
         top.pack(fill="x")
         row = ctk.CTkFrame(top, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=14)
+        row.pack(fill="x", padx=16, pady=(14, 8))
         # placeholder_text, textvariable ile birlikte çalışmaz; bu yüzden olaya bağlıyız
         self.entry = ctk.CTkEntry(row, height=38, corner_radius=10, placeholder_text="🔎  Geçmişte ara…")
         self.entry.pack(side="left", fill="x", expand=True)
@@ -52,6 +53,9 @@ class ClipboardPage(ctk.CTkFrame):
         ctk.CTkSwitch(row, text="Kaydediyor", variable=self.rec_var, progress_color=OK,
                       command=self._toggle_recording).pack(side="left", padx=16)
         ghost_button(row, "🗑  Temizle", self._clear, width=100, danger=True).pack(side="left")
+
+        self.date_bar = DateFilterBar(top, on_change=self.refresh)
+        self.date_bar.pack(fill="x", padx=16, pady=(0, 14))
 
         self.stat = StatCard(self, "Kayıtlı öğe", "0")
         self.stat.pack(fill="x", pady=12)
@@ -102,12 +106,13 @@ class ClipboardPage(ctk.CTkFrame):
         selected = self._selected_id()
         self.tree.delete(*self.tree.get_children())
         self.clips = {}
-        for c in self.store.list(self.entry.get()):
+        since, until = self.date_bar.range()
+        for c in self.store.list(self.entry.get(), since=since, until=until):
             iid = str(c.id)
             self.clips[iid] = c
             when = datetime.fromtimestamp(c.ts).strftime("%d.%m %H:%M")
             self.tree.insert("", "end", iid=iid, values=("📌" if c.pinned else "", when, _one_line(c.text)))
-        self.stat.set(self.store.count())
+        self.stat.set(f"{len(self.clips)} / {self.store.count()}" if len(self.clips) != self.store.count() else self.store.count())
         if selected and selected in self.clips:
             self.tree.selection_set(selected)
         else:

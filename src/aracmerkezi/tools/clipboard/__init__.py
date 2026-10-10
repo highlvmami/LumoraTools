@@ -4,7 +4,13 @@ from .page import ClipboardPage, get_service
 
 def _start(hub) -> None:
     _, monitor = get_service(hub)
-    monitor.start()
+    monitor.resume()  # yeniden görünür olunca, gizliyken kopyalananlar kaydedilmez
+
+
+def _stop(hub) -> None:
+    """Araç menüden gizlenince pano kaydı da durur (gizli araç arka planda kayıt tutmasın)."""
+    _, monitor = get_service(hub)
+    monitor.stop()
 
 
 TOOL = ToolInfo(
@@ -13,6 +19,7 @@ TOOL = ToolInfo(
     icon="📋",
     description="Kopyaladığın her metni saklar, aranabilir hale getirir. Sabitle, tekrar kopyala, sil.",
     build=lambda parent, hub: ClipboardPage(parent, hub),
-    order=20,
+    order=30,
     start=_start,
+    stop=_stop,
 )

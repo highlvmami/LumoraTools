@@ -7,5 +7,5 @@ TOOL = ToolInfo(
     icon="🔎",
     description="Seçtiğin klasörlerdeki dosyaların içeriğini dizinler ve anında arar. Metin, kod, Word ve PDF.",
     build=lambda parent, hub: SearchPage(parent, hub),
-    order=30,
+    order=10,
 )

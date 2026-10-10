@@ -611,5 +611,5 @@ TOOL = ToolInfo(
     icon="📁",
     description="Klasörü türe veya tarihe göre düzenler, yapısını olduğu gibi listeler; istediğin dosyaları seçip taşır.",
     build=lambda parent, hub: OrganizerPage(parent, hub),
-    order=10,
+    order=20,
 )

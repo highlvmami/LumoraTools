@@ -26,6 +26,21 @@ Seçtiğin klasörlerdeki dosyaların içeriğinde anında arar (SQLite FTS5).
 
 Metin, kod, `.docx` ve `.pdf` dosyaları dizinlenir. Değişmeyenler tekrar okunmaz.
 
+### 📊 Boyut Analizcisi
+Diskte yeri en çok kimin kapladığını gösterir. Klasörü seç, **Analiz et**; klasörler boyuta göre çubuklarla listelenir,
+çubuğa tıklayınca içine girersin (**Üst klasör** ile geri çıkarsın). **En büyük dosyalar** sekmesi tüm ağaçtaki en büyük
+dosyaları sıralar. Araç hiçbir şey silmez.
+
+### 🖼 Ekran Görüntüleri
+Ekran görüntüleri klasörünü (varsayılan: Resimler\Screenshots) tarihe göre `Yıl\Ay` veya `Yıl\Ay\Gün` klasörlerine düzenler.
+- **Şimdi tarihe göre düzenle** mevcut görüntüleri taşır (**Geri al** ile geri alınır); yalnızca görüntü dosyalarına dokunur.
+- **Otomatik düzenle** anahtarı, uygulama açıkken yeni ekran görüntülerini arka planda yerleştirir.
+- Ada, nota, klasöre ve tarihe (ör. `11.10.2026`) göre ara; tarih filtresiyle daralt; önizle; her görüntüye not ekle.
+
+### Menü ve tarih filtresi
+**Ayarlar → Menüyü düzenle:** araçları ⠿ tutamacından sürükleyerek sırala, anahtarla gizle/göster (gizlenen aracın arka plan işi de durur).
+Pano Geçmişi ve Ekran Görüntüleri'nde tarih filtresi: Bugün, Dün, Son 7/30 gün veya elle yazılan aralık.
+
 ## Kurulum
 [Releases](../../releases/latest) sayfasından `AracMerkezi.exe` dosyasını indirip çalıştır.
 Uygulama açılışta yeni sürüm olup olmadığına bakar ve otomatik günceller (Ayarlar'dan kapatılabilir).
