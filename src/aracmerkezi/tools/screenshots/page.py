@@ -12,7 +12,7 @@ import customtkinter as ctk
 
 from duzenle import engine
 
-from ... import ui
+from ... import recycle, ui
 from ...date_bar import DateFilterBar
 from ...ui import ACCENT, ACCENT_HOVER, CARD, MUTED, OK, Spinner, ghost_button, make_tree
 from . import library as lib
@@ -110,7 +110,16 @@ class ScreenshotsPage(ctk.CTkFrame):
         self.count = ctk.CTkLabel(row, text="", text_color=MUTED, width=170, anchor="e")
         self.count.pack(side="left", padx=(10, 0))
         self.date_bar = DateFilterBar(bar, on_change=self.render)
-        self.date_bar.pack(fill="x", padx=16, pady=(0, 12))
+        self.date_bar.pack(fill="x", padx=16, pady=(0, 8))
+        row3 = ctk.CTkFrame(bar, fg_color="transparent")
+        row3.pack(fill="x", padx=16, pady=(0, 12))
+        ghost_button(row3, "☑ Tümünü seç", self.select_all, width=116).pack(side="left")
+        ghost_button(row3, "☐ Seçimi kaldır", self.clear_selection, width=126).pack(side="left", padx=6)
+        self.sel_label = ctk.CTkLabel(row3, text="Ctrl / Shift ile birden çok görüntü seçebilirsin", text_color=MUTED)
+        self.sel_label.pack(side="left", padx=10)
+        self.delete_btn = ghost_button(row3, "🗑  Seçilenleri sil", self.delete_selected, width=150, danger=True)
+        self.delete_btn.pack(side="right")
+        self.delete_btn.configure(state="disabled")
 
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.pack(fill="both", expand=True)
@@ -126,6 +135,8 @@ class ScreenshotsPage(ctk.CTkFrame):
         self.tree.column("size", stretch=False, anchor="e")
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self._show_preview())
         self.tree.bind("<Double-1>", lambda _e: self._act(open_file))
+        self.tree.bind("<Delete>", lambda _e: self.delete_selected())
+        self.tree.bind("<Control-a>", lambda _e: (self.select_all(), "break")[1])
         self.empty = ctk.CTkLabel(table, text="", text_color=MUTED)
         self.empty.place(relx=0.5, rely=0.5, anchor="center")
         self.spinner = Spinner(table)
@@ -212,17 +223,44 @@ class ScreenshotsPage(ctk.CTkFrame):
             self._set_empty("")
             if len(found) > SHOW_LIMIT:
                 self.count.configure(text=f"{len(found)} görüntü (ilk {SHOW_LIMIT})")
-            self.tree.selection_set("0")
+            # Kendiliğinden seçim yapılmaz: kullanıcı seçmediği görüntü silinmeye hazır olmasın.
         self._show_preview()
 
     # ---------- önizleme ve not ----------
+    def _selected_list(self) -> list[lib.Shot]:
+        return [self.visible[i] for i in self.tree.selection() if i in self.visible]
+
     def _selected(self) -> lib.Shot | None:
-        sel = self.tree.selection()
-        return self.visible.get(sel[0]) if sel else None
+        """Yalnızca tek görüntü seçiliyken o görüntü (not/aç/klasörde göster tek görüntüye uygulanır)."""
+        shots = self._selected_list()
+        return shots[0] if len(shots) == 1 else None
+
+    def _update_selection_ui(self, shots: list[lib.Shot]) -> None:
+        n = len(shots)
+        if n:
+            self.sel_label.configure(text=f"{n} görüntü seçili ({human_size(sum(s.size for s in shots))})")
+        else:
+            self.sel_label.configure(text="Ctrl / Shift ile birden çok görüntü seçebilirsin")
+        self.delete_btn.configure(text=f"🗑  Seçilenleri sil ({n})" if n else "🗑  Seçilenleri sil",
+                                  state="normal" if n else "disabled")
+
+    def select_all(self) -> None:
+        self.tree.selection_set(self.tree.get_children())
+
+    def clear_selection(self) -> None:
+        self.tree.selection_remove(self.tree.selection())
 
     def _show_preview(self) -> None:
+        shots = self._selected_list()
+        self._update_selection_ui(shots)
         shot = self._selected()
         self.note_entry.delete(0, "end")
+        if len(shots) > 1:  # çoklu seçim: görüntü yerine özet göster
+            self._img = None
+            self.preview.configure(image=None, text=f"{len(shots)} görüntü seçili")
+            self.detail.configure(text=f"Toplam {human_size(sum(s.size for s in shots))}\n"
+                                       "🗑 ile hepsini Geri Dönüşüm Kutusu'na taşıyabilirsin.")
+            return
         if not shot:
             self._img = None
             self.preview.configure(image=None, text="Bir görüntü seç")
@@ -251,6 +289,47 @@ class ScreenshotsPage(ctk.CTkFrame):
         where_text = "(ana klasör)" if str(where) == "." else str(where)
         self.detail.configure(text=f"{shot.path.name}\n{dims}{human_size(shot.size)}   ·   "
                                    f"{datetime.fromtimestamp(shot.mtime):%d.%m.%Y %H:%M}\n📁 {where_text}")
+
+    def delete_selected(self) -> None:
+        """Seçili görüntüleri kalıcı silmek yerine Geri Dönüşüm Kutusu'na taşır (geri yüklenebilir)."""
+        shots = self._selected_list()
+        if not shots:
+            self.status.configure(text="Önce silinecek görüntüleri seç (Ctrl / Shift ile çoklu seçebilirsin).")
+            return
+        total = human_size(sum(s.size for s in shots))
+        if not messagebox.askyesno(
+                "Geri Dönüşüm Kutusu'na taşı",
+                f"{len(shots)} görüntü ({total}) Geri Dönüşüm Kutusu'na taşınacak.\n\n"
+                "Geri Dönüşüm Kutusu'ndan istediğin zaman geri yükleyebilirsin.\nDevam edilsin mi?",
+                icon="warning"):
+            return
+        paths = [s.path for s in shots]
+        self.spinner.start("Geri Dönüşüm Kutusu'na taşınıyor…")
+
+        def work():
+            try:
+                gone, error = recycle.move_to_trash(paths), ""
+            except Exception as e:  # Windows dışı, erişim hatası vb.
+                gone, error = [], str(e)
+            self.after(0, lambda: self._deleted(shots, gone, error))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _deleted(self, shots: list[lib.Shot], gone: list[Path], error: str) -> None:
+        self.spinner.stop()
+        gone_set = set(gone)
+        for s in shots:
+            if s.path in gone_set:
+                self.svc.notes.set(s.key, "")  # silinen görüntünün notu da kalkar
+        if error:
+            self.status.configure(text=f"Silinemedi: {error}")
+        elif len(gone) == len(shots):
+            self.status.configure(text=f"🗑 {len(gone)} görüntü Geri Dönüşüm Kutusu'na taşındı "
+                                       "(oradan geri yüklenebilir).")
+        else:
+            self.status.configure(text=f"🗑 {len(gone)} görüntü taşındı; {len(shots) - len(gone)} tanesi "
+                                       "taşınamadı (kullanımda olabilir ya da işlem iptal edildi).")
+        self.reload()
 
     def save_note(self) -> None:
         shot = self._selected()

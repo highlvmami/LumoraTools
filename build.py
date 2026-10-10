@@ -36,11 +36,11 @@ def write_version_file(version: str) -> Path:
                     fileType=0x1, subtype=0x0, date=(0, 0)),
   kids=[
     StringFileInfo([StringTable('040904B0', [
-      StringStruct('FileDescription', 'Arac Merkezi'),
+      StringStruct('FileDescription', 'LumoraTools'),
       StringStruct('FileVersion', '{version}'),
       StringStruct('InternalName', '{NAME}'),
       StringStruct('OriginalFilename', '{NAME}.exe'),
-      StringStruct('ProductName', 'Arac Merkezi'),
+      StringStruct('ProductName', 'LumoraTools'),
       StringStruct('ProductVersion', '{version}')])]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]
@@ -74,7 +74,8 @@ def main() -> int:
     hidden = [arg for name in BUILTIN_TOOLS for arg in ("--hidden-import", f"aracmerkezi.tools.{name}")]
     cmd = [
         sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--windowed",
-        "--name", NAME, "--icon", str(icon), "--add-data", f"{icon};assets", "--version-file", str(version_file),
+        "--name", NAME, "--icon", str(icon), "--add-data", f"{icon};assets",
+        "--add-data", f"{icon.parent / 'logo.png'};assets", "--version-file", str(version_file),
         "--paths", str(ROOT / "src"),
         "--collect-all", "customtkinter",
         "--collect-submodules", "aracmerkezi", "--collect-submodules", "duzenle",

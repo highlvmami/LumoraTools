@@ -41,6 +41,14 @@ Ekran görüntüleri klasörünü (varsayılan: Resimler\Screenshots) tarihe gö
 **Ayarlar → Menüyü düzenle:** araçları ⠿ tutamacından sürükleyerek sırala, anahtarla gizle/göster (gizlenen aracın arka plan işi de durur).
 Pano Geçmişi ve Ekran Görüntüleri'nde tarih filtresi: Bugün, Dün, Son 7/30 gün veya elle yazılan aralık.
 
+### Rehberler ve İletişim
+**Rehberler** (Ayarlar'ın hemen üstünde) her aracın kısa kullanım anlatımını içerir. **İletişim** sayfasından istek,
+şikayet, hata ya da geri bildirim yazabilirsin: mesaj tarayıcıda hazır doldurulmuş bir GitHub sayfası olarak açılır ve
+sen orada gönder düğmesine basana kadar kimseye gönderilmez.
+
+Ekran Görüntüleri'nde Ctrl / Shift ile birden çok görüntü seçip silebilirsin; silinenler kalıcı yok olmaz,
+Geri Dönüşüm Kutusu'na taşınır.
+
 ## Kurulum
 [Releases](../../releases/latest) sayfasından `AracMerkezi.exe` dosyasını indirip çalıştır.
 Uygulama açılışta yeni sürüm olup olmadığına bakar ve otomatik günceller (Ayarlar'dan kapatılabilir).

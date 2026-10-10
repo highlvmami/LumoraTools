@@ -1,4 +1,4 @@
-"""Araç Merkezi: menüden araç seçilen tek pencereli kabuk."""
+"""LumoraTools: menüden araç seçilen tek pencereli kabuk."""
 from __future__ import annotations
 
 import json
@@ -13,6 +13,8 @@ from typing import Callable
 import customtkinter as ctk
 
 from . import __version__, _buildinfo, registry, ui, updater
+from .contact_page import ContactPage
+from .guides_page import GuidesPage
 from .menu_editor import MenuEditor
 from .ui import ACCENT, ACCENT_HOVER, BG, CARD, MUTED, OK, SIDEBAR, TEXT
 
@@ -23,6 +25,7 @@ def asset_path(name: str) -> Path:
 
 THEMES = {"Koyu": "dark", "Açık": "light", "Sistem": "system"}
 NAV_HOVER = ("#d8dbe8", "#1c2030")
+FIXED_PAGES = ("home", "settings", "guides", "contact")  # araç olmayan, her zaman var olan sayfalar
 
 
 class Hub(ctk.CTk):
@@ -43,7 +46,7 @@ class Hub(ctk.CTk):
         self.current: str | None = None
 
         ctk.set_appearance_mode(self.settings.get("theme", "dark"))
-        self.title(f"Araç Merkezi  —  v{__version__}")
+        self.title(f"LumoraTools  —  v{__version__}")
         self.geometry("1100x720")
         self.minsize(940, 620)
         self.configure(fg_color=BG)
@@ -113,14 +116,19 @@ class Hub(ctk.CTk):
 
     # ---------- iskelet ----------
     def _known(self, key: str | None) -> bool:
-        return key in ("home", "settings") or any(t.id == key for t in self.tools)
+        return key in FIXED_PAGES or any(t.id == key for t in self.tools)
 
     def _build_sidebar(self) -> None:
         bar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=SIDEBAR)
         bar.grid(row=0, column=0, sticky="nsew")
         bar.grid_propagate(False)
-        ctk.CTkLabel(bar, text="🧰  Araç Merkezi", font=ctk.CTkFont(size=20, weight="bold")).pack(
-            anchor="w", padx=20, pady=(28, 2))
+        head = ctk.CTkFrame(bar, fg_color="transparent")
+        head.pack(anchor="w", padx=18, pady=(24, 4))
+        self._logo = self._load_logo()
+        if self._logo:
+            ctk.CTkLabel(head, text="", image=self._logo).pack(side="left")
+        ctk.CTkLabel(head, text="LumoraTools", font=ctk.CTkFont(size=20, weight="bold")).pack(
+            side="left", padx=(10 if self._logo else 4, 0))
         ctk.CTkLabel(bar, text=f"Sürüm {__version__}", font=ctk.CTkFont(size=12, weight="bold"),
                      text_color=("#3730a3", "#a5b4fc"), fg_color=("#e0e7ff", "#272b4a"), corner_radius=8,
                      height=24).pack(anchor="w", padx=22, pady=(2, 22), ipadx=8)
@@ -131,23 +139,34 @@ class Hub(ctk.CTk):
         self.tool_nav = ctk.CTkFrame(bar, fg_color="transparent")
         self.tool_nav.pack(fill="x")
         self._populate_nav()
-        self._nav_button(bar, "settings", "⚙  Ayarlar", bottom=True)
+        # alttan yukarı paketlenir: Ayarlar en altta, hemen üstünde Rehberler, onun üstünde İletişim
+        self._nav_button(bar, "settings", "⚙  Ayarlar", bottom=True, pad_bottom=18)
+        self._nav_button(bar, "guides", "📖  Rehberler", bottom=True)
+        self._nav_button(bar, "contact", "💬  İletişim", bottom=True)
 
     def _populate_nav(self) -> None:
         for w in self.tool_nav.winfo_children():
             w.destroy()
-        for k in [k for k in self.nav if k not in ("home", "settings")]:
+        for k in [k for k in self.nav if k not in FIXED_PAGES]:
             del self.nav[k]
         for t in self.tools:
             self._nav_button(self.tool_nav, t.id, f"{t.icon}  {t.name}")
         if self.current in self.nav:
             self.nav[self.current].configure(fg_color=ACCENT, text_color="#ffffff")
 
-    def _nav_button(self, bar, key: str, label: str, bottom: bool = False) -> None:
+    def _load_logo(self):
+        try:
+            from PIL import Image
+            img = Image.open(asset_path("logo.png"))
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(40, 40))
+        except Exception:
+            return None  # logo yoksa yalnızca ad görünür
+
+    def _nav_button(self, bar, key: str, label: str, bottom: bool = False, pad_bottom: int = 3) -> None:
         b = ctk.CTkButton(bar, text=label, anchor="w", height=40, corner_radius=10, fg_color="transparent",
                           text_color=TEXT, hover_color=NAV_HOVER, font=ctk.CTkFont(size=14),
                           command=lambda: self.show(key))
-        b.pack(fill="x", padx=14, pady=(3, 18) if bottom else 3, side="bottom" if bottom else "top")
+        b.pack(fill="x", padx=14, pady=(3, pad_bottom) if bottom else 3, side="bottom" if bottom else "top")
         self.nav[key] = b
 
     def _page_for(self, key: str) -> ctk.CTkFrame:
@@ -155,6 +174,10 @@ class Hub(ctk.CTk):
             return self._build_home()
         if key == "settings":
             return self._build_settings()
+        if key == "guides":
+            return GuidesPage(self.content, self)
+        if key == "contact":
+            return ContactPage(self.content, self)
         tool = next(t for t in self.all_tools if t.id == key)
         return tool.build(self.content, self)
 
@@ -452,7 +475,8 @@ def main(argv: list[str] | None = None) -> None:
         report = (f"version={__version__}\nfrozen={updater.is_frozen()}\n"
                   f"tools={','.join(t.id for t in tools)}\n"
                   f"errors={' | '.join(registry.load_errors) or '-'}\n"
-                  f"pillow={_pillow_version()}\n")
+                  f"pillow={_pillow_version()}\n"
+                  f"logo={asset_path('logo.png').exists()} icon={asset_path('icon.ico').exists()}\n")
         if len(argv) > 1:
             Path(argv[1]).write_text(report, encoding="utf-8")
         else:

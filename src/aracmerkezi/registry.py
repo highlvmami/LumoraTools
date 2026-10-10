@@ -13,6 +13,14 @@ from typing import Any, Callable
 
 
 @dataclass(frozen=True)
+class Guide:
+    """Rehberler sayfasında gösterilen kısa kullanım anlatımı."""
+    summary: str
+    steps: tuple[str, ...]
+    tips: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ToolInfo:
     id: str
     name: str
@@ -22,6 +30,7 @@ class ToolInfo:
     order: int = 100
     start: Callable[[Any], None] | None = None  # uygulama açılınca arka plan işi başlatır
     stop: Callable[[Any], None] | None = None   # araç menüden gizlenince arka plan işini durdurur
+    guide: Guide | None = None                  # Rehberler sayfasındaki kısa anlatım
 
 
 # PyInstaller klasör taramasını (pkgutil) güvenilir desteklemez; paketlenmiş sürümde de

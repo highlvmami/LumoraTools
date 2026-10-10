@@ -16,7 +16,7 @@ from duzenle.watcher import Watcher
 
 from .. import ui
 from ..plan_view import Item, PlanView
-from ..registry import ToolInfo
+from ..registry import Guide, ToolInfo
 from ..structure import build_tree, list_entries
 from ..ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, OK_HOVER, Spinner, StatCard,
                   ghost_button)
@@ -605,6 +605,23 @@ class OrganizerPage(ctk.CTkFrame):
         self.cfg.update(folder=self.folder_var.get(), mode=self.mode_var.get(), date_format=self._date_format())
 
 
+GUIDE = Guide(
+    summary="Bir klasörü (ör. İndirilenler) uzantıya veya tarihe göre alt klasörlere ayırır; yeni gelen dosyaları otomatik yerleştirir.",
+    steps=(
+        "Klasörü seç ('Gözat' ya da 'İndirilenler') ve düzeni seç: Uzantıya göre, Tarihe göre, Birleşik ya da Olduğu gibi.",
+        "'Önizle'ye bas. Dosyalar hedef klasörlerine göre gruplanır; her dosyanın şu anki ve yeni yeri yazılır. Bu adımda hiçbir şey taşınmaz.",
+        "Taşımak istemediklerinin işaretini kaldır: bir dosyaya tıkla; klasör satırına tıklarsan klasördeki hepsi seçilir/kalkar. Filtre kutusu ve 'Görünenleri seç / Kaldır / Ters çevir' toplu seçim içindir.",
+        "'Seçilenleri düzenle'ye bas ve onayla. Seçilmeyenler yerinde kalır.",
+        "Yanlış yaptıysan 'Geri al' son işlemi geri alır.",
+    ),
+    tips=(
+        "'Olduğu gibi' modu yalnızca klasör ağacını listeler, dosya taşımaz.",
+        "'İzle' sekmesi klasöre yeni gelen dosyaları otomatik yerleştirir; indirme bitmeden dokunmaz.",
+        "desktop.ini ve gizli/sistem dosyaları hiçbir zaman taşınmaz.",
+    ),
+)
+
+
 TOOL = ToolInfo(
     id="duzenleyici",
     name="Dosya Düzenleyici",
@@ -612,4 +629,5 @@ TOOL = ToolInfo(
     description="Klasörü türe veya tarihe göre düzenler, yapısını olduğu gibi listeler; istediğin dosyaları seçip taşır.",
     build=lambda parent, hub: OrganizerPage(parent, hub),
     order=20,
+    guide=GUIDE,
 )
