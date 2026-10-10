@@ -36,7 +36,7 @@ class ToolInfo:
 # PyInstaller klasör taramasını (pkgutil) güvenilir desteklemez; paketlenmiş sürümde de
 # bulunması gereken yerleşik araçlar bu yüzden açıkça listelenir. Yeni bir araç yalnızca
 # geliştirme sırasında klasörden otomatik bulunur; yerleşik yapmak için buraya ekle.
-BUILTIN_TOOLS = ("organizer", "clipboard", "search", "diskusage", "screenshots")
+BUILTIN_TOOLS = ("organizer", "clipboard", "search", "diskusage", "screenshots", "cleaner", "startup")
 
 load_errors: list[str] = []
 

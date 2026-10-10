@@ -41,6 +41,23 @@ Ekran görüntüleri klasörünü (varsayılan: Resimler\Screenshots) tarihe gö
 **Ayarlar → Menüyü düzenle:** araçları ⠿ tutamacından sürükleyerek sırala, anahtarla gizle/göster (gizlenen aracın arka plan işi de durur).
 Pano Geçmişi ve Ekran Görüntüleri'nde tarih filtresi: Bugün, Dün, Son 7/30 gün veya elle yazılan aralık.
 
+### 🧹 Sistem Temizleyici
+Geçici dosyaları, çökme dökümlerini, yarım kalmış indirmeleri, tarayıcı/pip önbelleklerini ve Geri Dönüşüm Kutusu'nu
+boyutlarıyla listeler; yalnızca işaretlediklerini temizler. Güvenlik: yalnızca tanımlı klasörlere dokunur, geçici
+dosyalarda 1 günden yenilere ve bağlantılara (junction/symlink) dokunmaz, yarım indirmeleri kalıcı silmek yerine
+Geri Dönüşüm Kutusu'na taşır. Onay penceresi neyin KALICI silineceğini açıkça yazar; kutuyu boşaltmak kendiliğinden seçili gelmez.
+
+### 🚀 Başlangıç Programları
+Windows açılırken çalışan programları (kayıt defteri ve Başlangıç klasörleri) listeler; her birini silmeden kapatıp
+açabilirsin (Görev Yöneticisi'nin kullandığı StartupApproved işareti). Değişiklik bir sonraki oturum açışında geçerli olur.
+
+### 📋 Pano: görüntü ve dosya
+Pano Geçmişi artık kopyalanan görüntüleri ve dosyaları da saklar; seçip tekrar panoya alabilirsin.
+
+### 🎨 Temalar ve Yenilikler
+Ayarlar'dan 12 temadan birini seç (Gece, Gündüz, Okyanus, Orman, Gün Batımı, Kahve, Nord, Kömür, AMOLED, Lavanta, Şeker, Kağıt);
+tüm renkler okunabilirlik oranları testle doğrulanmıştır. Uygulama güncellenince **Yenilikler** penceresi değişenleri gösterir.
+
 ### Rehberler ve İletişim
 **Rehberler** (Ayarlar'ın hemen üstünde) her aracın kısa kullanım anlatımını içerir. **İletişim** sayfasından istek,
 şikayet, hata ya da geri bildirim yazabilirsin: mesaj tarayıcıda hazır doldurulmuş bir GitHub sayfası olarak açılır ve

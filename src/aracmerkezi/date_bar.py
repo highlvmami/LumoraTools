@@ -5,26 +5,26 @@ from typing import Callable
 
 import customtkinter as ctk
 
+from . import ui
 from .datefilter import CUSTOM, PRESETS, custom_range, preset_range
-from .ui import ACCENT, ACCENT_HOVER, MUTED
 
 
 class DateFilterBar(ctk.CTkFrame):
     def __init__(self, master, on_change: Callable[[], None]) -> None:
         super().__init__(master, fg_color="transparent")
         self.on_change = on_change
-        ctk.CTkLabel(self, text="📅  Tarih", text_color=MUTED).pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(self, text="📅  Tarih", text_color=ui.MUTED).pack(side="left", padx=(0, 10))
         self.seg = ctk.CTkSegmentedButton(self, values=PRESETS, command=self._preset_changed, height=32,
-                                          selected_color=ACCENT, selected_hover_color=ACCENT_HOVER)
+                                          selected_color=ui.SEG_ON, selected_hover_color=ui.SEG_ON_HOVER)
         self.seg.set("Tümü")
         self.seg.pack(side="left")
-        self.hint = ctk.CTkLabel(self, text="", text_color=MUTED, anchor="w")
+        self.hint = ctk.CTkLabel(self, text="", text_color=ui.MUTED, anchor="w")
         self.hint.pack(side="left", padx=14)
         self.range_box = ctk.CTkFrame(self, fg_color="transparent")
         self.from_entry = ctk.CTkEntry(self.range_box, width=108, height=32, placeholder_text="GG.AA.YYYY")
         self.to_entry = ctk.CTkEntry(self.range_box, width=108, height=32, placeholder_text="GG.AA.YYYY")
         self.from_entry.pack(side="left")
-        ctk.CTkLabel(self.range_box, text="–", text_color=MUTED).pack(side="left", padx=6)
+        ctk.CTkLabel(self.range_box, text="–", text_color=ui.MUTED).pack(side="left", padx=6)
         self.to_entry.pack(side="left")
         for e in (self.from_entry, self.to_entry):
             e.bind("<KeyRelease>", lambda _e: self.on_change())
@@ -45,5 +45,5 @@ class DateFilterBar(ctk.CTkFrame):
         try:
             return custom_range(self.from_entry.get(), self.to_entry.get())
         except ValueError as e:
-            self.hint.configure(text=f"⚠ {e}", text_color=("#b45309", "#fbbf24"))
+            self.hint.configure(text=f"⚠ {e}", text_color=ui.WARN)
             return None, None

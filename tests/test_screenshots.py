@@ -24,8 +24,8 @@ def test_lists_only_images_newest_first_recursively(tmp_path):
 
 
 def test_filter_by_name_note_folder_and_date_text(tmp_path):
-    a = make(tmp_path / "Ekran görüntüsü 1.png", datetime(2026, 10, 11, 9))
-    b = make(tmp_path / "2026" / "09" / "hata.png", datetime(2026, 9, 3, 18))
+    make(tmp_path / "Ekran görüntüsü 1.png", datetime(2026, 10, 11, 9))
+    make(tmp_path / "2026" / "09" / "hata.png", datetime(2026, 9, 3, 18))
     shots = lib.list_shots(tmp_path)
     notes = {shots[0].key: "Fatura sayfası"}      # en yenisi a
     f = lambda q, **kw: [s.path.name for s in lib.filter_shots(shots, q, notes, tmp_path, **kw)]

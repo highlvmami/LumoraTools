@@ -1,15 +1,13 @@
 """Ayarlar'daki menü düzenleyici: araçları sürükleyerek sırala, anahtarla gizle/göster."""
 from __future__ import annotations
 
+from . import ui
 from typing import Callable
 
 import customtkinter as ctk
 
-from .ui import ACCENT, MUTED
 
 ROW_H = 50
-ROW_COLOR = ("#f3f4f8", "#272b45")
-DRAG_COLOR = ("#e0e7ff", "#343a63")
 
 
 class MenuEditor(ctk.CTkFrame):
@@ -46,14 +44,14 @@ class MenuEditor(ctk.CTkFrame):
 
     # ---------- satırlar ----------
     def _make_row(self, tid: str, visible: bool) -> None:
-        row = ctk.CTkFrame(self.box, fg_color=ROW_COLOR, corner_radius=10, height=ROW_H - 6)
+        row = ctk.CTkFrame(self.box, fg_color=ui.CARD_ALT, corner_radius=10, height=ROW_H - 6)
         row.pack_propagate(False)  # yükseklik sabit kalsın (CTk, place() ile yükseklik verilmesine izin vermez)
-        handle = ctk.CTkLabel(row, text="⠿", width=34, font=ctk.CTkFont(size=20), text_color=MUTED, cursor="fleur")
+        handle = ctk.CTkLabel(row, text="⠿", width=34, font=ctk.CTkFont(size=20), text_color=ui.MUTED, cursor="fleur")
         handle.pack(side="left", padx=(8, 0))
         name = ctk.CTkLabel(row, text=self.labels[tid], anchor="w", cursor="fleur")
         name.pack(side="left", fill="x", expand=True, padx=6)
         var = ctk.BooleanVar(value=visible)
-        ctk.CTkSwitch(row, text="Görünür", variable=var, progress_color=ACCENT, width=90,
+        ctk.CTkSwitch(row, text="Görünür", variable=var, progress_color=ui.ACCENT, width=90,
                       command=self._changed).pack(side="right", padx=14)
         for w in (row, handle, name):
             w.bind("<ButtonPress-1>", lambda e, t=tid: self._press(t, e))
@@ -74,7 +72,7 @@ class MenuEditor(ctk.CTkFrame):
     def _press(self, tid: str, event) -> None:
         self._drag = tid
         self._grab_dy = event.y_root - self.rows[tid].winfo_rooty()
-        self.rows[tid].configure(fg_color=DRAG_COLOR)
+        self.rows[tid].configure(fg_color=ui.ROW_DRAG)
         self.rows[tid].lift()
 
     def _motion(self, tid: str, event) -> None:
@@ -93,7 +91,7 @@ class MenuEditor(ctk.CTkFrame):
         if self._drag != tid:
             return
         self._drag = None
-        self.rows[tid].configure(fg_color=ROW_COLOR)
+        self.rows[tid].configure(fg_color=ui.CARD_ALT)
         self._layout()
         self._changed()
 

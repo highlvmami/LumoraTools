@@ -11,11 +11,9 @@ from tkinter import filedialog
 import customtkinter as ctk
 
 from ... import ui
-from ...ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, Spinner, ghost_button,
-                   make_tree)
+from ...ui import Spinner, ghost_button, make_tree
 from . import scan as du
 
-FILE_COLOR = ("#94a3b8", "#64748b")
 
 
 def human_size(n: int) -> str:
@@ -52,24 +50,24 @@ class DiskUsagePage(ctk.CTkFrame):
 
         ui.page_header(self, "Klasör Boyut Analizcisi",
                        "Diskte yeri en çok kimin kapladığını gör. Çubuğa tıklayarak klasörün içine gir. Hiçbir şey silinmez.")
-        card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(self, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="x")
         row = ctk.CTkFrame(card, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=14)
         ctk.CTkEntry(row, textvariable=self.folder_var, height=38, corner_radius=10,
                      placeholder_text="Analiz edilecek klasör").pack(side="left", fill="x", expand=True)
-        ctk.CTkButton(row, text="Gözat", width=84, height=38, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(row, text="Gözat", width=84, height=38, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=self.browse).pack(side="left", padx=(8, 0))
         ghost_button(row, "Ev klasörüm", lambda: self.folder_var.set(str(Path.home())), width=110
                      ).pack(side="left", padx=(8, 0))
-        self.run_btn = ctk.CTkButton(row, text="📊  Analiz et", width=120, height=38, fg_color=ACCENT,
-                                     hover_color=ACCENT_HOVER, command=self.toggle_scan)
+        self.run_btn = ctk.CTkButton(row, text="📊  Analiz et", width=120, height=38, fg_color=ui.ACCENT,
+                                     hover_color=ui.ACCENT_HOVER, command=self.toggle_scan)
         self.run_btn.pack(side="left", padx=(8, 0))
-        self.progress = ctk.CTkLabel(card, text="", text_color=MUTED, anchor="w")
+        self.progress = ctk.CTkLabel(card, text="", text_color=ui.MUTED, anchor="w")
         self.progress.pack(fill="x", padx=18, pady=(0, 12))
 
-        self.tabs = ctk.CTkTabview(self, fg_color="transparent", segmented_button_selected_color=ACCENT,
-                                   segmented_button_selected_hover_color=ACCENT_HOVER)
+        self.tabs = ctk.CTkTabview(self, fg_color="transparent", segmented_button_selected_color=ui.SEG_ON,
+                                   segmented_button_selected_hover_color=ui.SEG_ON_HOVER)
         self.tabs.pack(fill="both", expand=True, pady=(6, 0))
         self._build_folders(self.tabs.add("Klasörler"))
         self._build_largest(self.tabs.add("En büyük dosyalar"))
@@ -88,14 +86,14 @@ class DiskUsagePage(ctk.CTkFrame):
         self.open_btn = ghost_button(nav, "📂  Explorer'da aç", self.open_current, width=140)
         self.open_btn.pack(side="right")
         self.open_btn.configure(state="disabled")
-        self.summary = ctk.CTkLabel(tab, text="", text_color=MUTED, anchor="w")
+        self.summary = ctk.CTkLabel(tab, text="", text_color=ui.MUTED, anchor="w")
         self.summary.pack(fill="x", pady=(0, 6))
-        holder = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
+        holder = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=14)
         holder.pack(fill="both", expand=True)
         self.list = ctk.CTkScrollableFrame(holder, fg_color="transparent")
         self.list.pack(fill="both", expand=True, padx=6, pady=6)
         self.list.grid_columnconfigure(1, weight=1)
-        self.empty = ctk.CTkLabel(self.list, text="Bir klasör seçip 'Analiz et'e bas.", text_color=MUTED)
+        self.empty = ctk.CTkLabel(self.list, text="Bir klasör seçip 'Analiz et'e bas.", text_color=ui.MUTED)
         self.empty.grid(row=0, column=0, columnspan=4, pady=40)
         self.spinner = Spinner(holder)
 
@@ -114,16 +112,16 @@ class DiskUsagePage(ctk.CTkFrame):
             text=f"Toplam {human_size(node.size)}   ·   {node.file_count:,} dosya   ·   {len(node.dirs)} alt klasör")
         shown, rest_count, rest_size = du.rows(node)
         if not shown and not rest_count:
-            ctk.CTkLabel(self.list, text="Bu klasör boş.", text_color=MUTED).grid(row=0, column=0, pady=30, padx=20)
+            ctk.CTkLabel(self.list, text="Bu klasör boş.", text_color=ui.MUTED).grid(row=0, column=0, pady=30, padx=20)
             return
         biggest = max([s for _, _, s, _ in shown] + [rest_size, 1])
         total = max(node.size, 1)
         for i, (kind, name, size, child) in enumerate(shown):
             self._row(i, "📂" if kind == "dir" else "📄", name, size, size / biggest, size * 100 / total,
-                      ACCENT if kind == "dir" else FILE_COLOR, child)
+                      ui.ACCENT if kind == "dir" else ui.FILE_BAR, child)
         if rest_count:
             self._row(len(shown), "…", f"diğer {rest_count:,} öğe", rest_size, rest_size / biggest,
-                      rest_size * 100 / total, FILE_COLOR, None)
+                      rest_size * 100 / total, ui.FILE_BAR, None)
 
     def _row(self, i: int, icon: str, name: str, size: int, ratio: float, percent: float, color, child) -> None:
         clickable = child is not None
@@ -133,7 +131,7 @@ class DiskUsagePage(ctk.CTkFrame):
             ctk.CTkProgressBar(self.list, height=14, progress_color=color, corner_radius=7),
             ctk.CTkLabel(self.list, text=human_size(size), anchor="e", width=84),
             ctk.CTkLabel(self.list, text=f"%{percent:.1f}" if percent >= 0.1 else "<%0.1", anchor="e", width=56,
-                         text_color=MUTED),
+                         text_color=ui.MUTED),
         ]
         widgets[1].set(max(ratio, 0.004))
         for col, w in enumerate(widgets):
@@ -157,7 +155,7 @@ class DiskUsagePage(ctk.CTkFrame):
 
     # ---------- En büyük dosyalar sekmesi ----------
     def _build_largest(self, tab) -> None:
-        holder = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
+        holder = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=14)
         holder.pack(fill="both", expand=True)
         self.big_tree = make_tree(holder, {"name": ("Dosya", 280), "folder": ("Klasör", 420), "size": ("Boyut", 90)})
         self.big_tree.column("size", anchor="e", stretch=False)
@@ -166,10 +164,10 @@ class DiskUsagePage(ctk.CTkFrame):
         self.big_paths: dict[str, str] = {}
         foot = ctk.CTkFrame(tab, fg_color="transparent")
         foot.pack(fill="x", pady=(8, 0))
-        ctk.CTkButton(foot, text="Klasörde göster", width=130, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(foot, text="Klasörde göster", width=130, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=self._reveal_big).pack(side="left")
         ctk.CTkLabel(foot, text="Çift tıklayınca da açılır. Bu araç dosya silmez; silmek istersen Explorer'da yap.",
-                     text_color=MUTED).pack(side="left", padx=12)
+                     text_color=ui.MUTED).pack(side="left", padx=12)
 
     def _reveal_big(self) -> None:
         sel = self.big_tree.selection()
@@ -203,7 +201,7 @@ class DiskUsagePage(ctk.CTkFrame):
         self._scan_token += 1
         token = self._scan_token
         self.stop_event.clear()
-        self.run_btn.configure(text="■  Durdur", fg_color=DANGER, hover_color=DANGER_HOVER)
+        self.run_btn.configure(text="■  Durdur", fg_color=ui.DANGER, hover_color=ui.DANGER_HOVER, text_color=ui.DANGER_TEXT)
         self._clear_rows()
         self.spinner.start("Klasör taranıyor…")
 
@@ -219,6 +217,8 @@ class DiskUsagePage(ctk.CTkFrame):
         self.after(150, self._poll)
 
     def _poll(self) -> None:
+        if not self.winfo_exists():
+            return
         finished = False
         while True:
             try:
@@ -239,9 +239,9 @@ class DiskUsagePage(ctk.CTkFrame):
         if finished:
             self.scanning = False
             self.spinner.stop()
-            self.run_btn.configure(text="📊  Analiz et", fg_color=ACCENT, hover_color=ACCENT_HOVER)
+            self.run_btn.configure(text="📊  Analiz et", fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER, text_color=ui.ACCENT_TEXT)
             if self.result is None:
-                ctk.CTkLabel(self.list, text="Analiz tamamlanamadı.", text_color=MUTED).grid(row=0, column=0, pady=30)
+                ctk.CTkLabel(self.list, text="Analiz tamamlanamadı.", text_color=ui.MUTED).grid(row=0, column=0, pady=30)
         else:
             self.after(150, self._poll)
 

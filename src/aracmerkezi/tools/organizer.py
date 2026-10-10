@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import types
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -18,8 +19,7 @@ from .. import ui
 from ..plan_view import Item, PlanView
 from ..registry import Guide, ToolInfo
 from ..structure import build_tree, list_entries
-from ..ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, OK_HOVER, Spinner, StatCard,
-                  ghost_button)
+from ..ui import Spinner, StatCard, ghost_button
 
 MODE_LABELS = {"Uzantıya göre": "uzanti", "Tarihe göre": "tarih", "Birleşik": "birlesik",
                "Olduğu gibi": "yapi"}
@@ -64,72 +64,83 @@ class OrganizerPage(ctk.CTkFrame):
         self._note = ""
         self._scan_id = 0
         self._filter_job: str | None = None
-        self.watcher: Watcher | None = None
-        self.messages: queue.Queue[str] = queue.Queue()
+        # İzleyici ve mesaj kuyruğu hub'da durur: tema değişip sayfa yeniden kurulsa da izleme sürer.
+        self._svc = hub.services.setdefault("organizer", types.SimpleNamespace(watcher=None, messages=queue.Queue()))
+        self.messages: queue.Queue[str] = self._svc.messages
 
         ui.page_header(self, "Dosya Düzenleyici", "Önce önizle, istediklerini seç, sonra tek tıkla yerleştir. Her işlem geri alınabilir.")
         self._folder_card()
-        tabs = ctk.CTkTabview(self, fg_color="transparent", segmented_button_selected_color=ACCENT,
-                              segmented_button_selected_hover_color=ACCENT_HOVER)
+        tabs = ctk.CTkTabview(self, fg_color="transparent", segmented_button_selected_color=ui.SEG_ON,
+                              segmented_button_selected_hover_color=ui.SEG_ON_HOVER)
         tabs.pack(fill="both", expand=True, pady=(6, 0))
         self._build_organize(tabs.add("Düzenle"))
         self._build_watch(tabs.add("İzle"))
         self._mode_ui()
 
+        if self.watcher and self.watcher.running:   # yeniden kurulumdan sonra çalışan izleme düğmede görünsün
+            self._watch_ui(True)
         hub.on_close.append(self._shutdown)
         self.after(250, self._drain_messages)
 
+    @property
+    def watcher(self) -> Watcher | None:
+        return self._svc.watcher
+
+    @watcher.setter
+    def watcher(self, value: Watcher | None) -> None:
+        self._svc.watcher = value
+
     # ---------- ortak klasör kartı ----------
     def _folder_card(self) -> None:
-        card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(self, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="x")
         row = ctk.CTkFrame(card, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=(16, 8))
         ctk.CTkEntry(row, textvariable=self.folder_var, height=38, corner_radius=10,
                      placeholder_text="Düzenlenecek klasör").pack(side="left", fill="x", expand=True)
-        ctk.CTkButton(row, text="Gözat", width=84, height=38, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(row, text="Gözat", width=84, height=38, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=self.browse).pack(side="left", padx=(8, 0))
         ghost_button(row, "İndirilenler", lambda: (self.folder_var.set(str(Path.home() / "Downloads")),
                                                    self._reset_preview()), width=104).pack(side="left", padx=(8, 0))
         row2 = ctk.CTkFrame(card, fg_color="transparent")
         row2.pack(fill="x", padx=16, pady=(0, 16))
         ctk.CTkSegmentedButton(row2, values=list(MODE_LABELS), variable=self.mode_var, height=34,
-                               selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
+                               selected_color=ui.SEG_ON, selected_hover_color=ui.SEG_ON_HOVER,
                                command=self._mode_changed).pack(side="left")
-        self.hint = ctk.CTkLabel(row2, text=MODE_HINTS[self._mode_key()], text_color=MUTED)
+        self.hint = ctk.CTkLabel(row2, text=MODE_HINTS[self._mode_key()], text_color=ui.MUTED)
         self.hint.pack(side="left", padx=14)
         self.date_entry = ctk.CTkEntry(row2, textvariable=self.date_var, width=90, height=30)
         self.date_entry.pack(side="right")
         self.date_entry.bind("<FocusOut>", lambda _e: self._reset_preview())
-        ctk.CTkLabel(row2, text="Tarih biçimi", text_color=MUTED).pack(side="right", padx=8)
+        ctk.CTkLabel(row2, text="Tarih biçimi", text_color=ui.MUTED).pack(side="right", padx=8)
 
     # ---------- Düzenle sekmesi ----------
     def _build_organize(self, tab) -> None:
         opts = ctk.CTkFrame(tab, fg_color="transparent")
         opts.pack(fill="x", pady=(4, 0))
-        self.preview_btn = ctk.CTkButton(opts, text="🔍  Önizle", width=120, height=36, fg_color=ACCENT,
-                                         hover_color=ACCENT_HOVER, command=self.preview)
+        self.preview_btn = ctk.CTkButton(opts, text="🔍  Önizle", width=120, height=36, fg_color=ui.ACCENT,
+                                         hover_color=ui.ACCENT_HOVER, command=self.preview)
         self.preview_btn.pack(side="left")
         self.rec_switch = ctk.CTkSwitch(opts, text="Alt klasörleri de tara", variable=self.recursive_var,
-                                        progress_color=ACCENT)
+                                        progress_color=ui.ACCENT)
         self.rec_switch.pack(side="left", padx=16)
         ghost_button(opts, "↩  Geri al", self.undo, width=110, danger=True).pack(side="right")
 
         # alt çubuk önce paketlenir: pencere küçülünce liste daralır, bu çubuk kaybolmaz
         foot = ctk.CTkFrame(tab, fg_color="transparent")
         foot.pack(side="bottom", fill="x", pady=(8, 0))
-        self.status = ctk.CTkLabel(foot, text="", text_color=MUTED, anchor="w", justify="left", wraplength=560)
+        self.status = ctk.CTkLabel(foot, text="", text_color=ui.MUTED, anchor="w", justify="left", wraplength=560)
         self.status.pack(side="left", fill="x", expand=True)
         self.apply_btn = ctk.CTkButton(foot, text="✓  Seçilenleri düzenle", height=40, width=220,
-                                       fg_color=OK, hover_color=OK_HOVER, state="disabled", command=self.apply)
+                                       fg_color=ui.OK, hover_color=ui.OK_HOVER, text_color=ui.OK_TEXT, state="disabled", command=self.apply)
         self.apply_btn.pack(side="right")
 
         # nereye taşınacağını açıkça söyleyen çubuk
         self.dest_info = ctk.CTkLabel(tab, text="", anchor="w", justify="left", wraplength=800,
-                                      text_color=("#3730a3", "#a5b4fc"), font=ctk.CTkFont(size=13, weight="bold"))
+                                      text_color=ui.ACCENT_FG, font=ctk.CTkFont(size=13, weight="bold"))
         self.dest_info.pack(fill="x", pady=(10, 0))
 
-        bar = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=12)
+        bar = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=12)
         bar.pack(fill="x", pady=(6, 8))
         self.filter_entry = ctk.CTkEntry(bar, height=34, corner_radius=8,
                                          placeholder_text="🔎  Filtrele: ad, uzantı veya klasör…")
@@ -145,7 +156,7 @@ class OrganizerPage(ctk.CTkFrame):
             b.pack(side="left", padx=(0, 6), pady=8)
         self.toggle_btn.pack_configure(padx=(0, 10))
 
-        table_card = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
+        table_card = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=14)
         table_card.pack(fill="both", expand=True)
         table_card.grid_columnconfigure(0, weight=1)
         table_card.grid_rowconfigure(0, weight=1)
@@ -165,7 +176,7 @@ class OrganizerPage(ctk.CTkFrame):
         self.tree.bind("<<TreeviewOpen>>", lambda _e: self._remember_open(True))
         self.tree.bind("<<TreeviewClose>>", lambda _e: self._remember_open(False))
         self.empty_label = ctk.CTkLabel(table_card, text="Önizle'ye basarak neyin nereye taşınacağını gör.",
-                                        text_color=MUTED)
+                                        text_color=ui.MUTED)
         self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
         self.spinner = Spinner(table_card)
         self._set_toolbar(False)
@@ -197,11 +208,10 @@ class OrganizerPage(ctk.CTkFrame):
 
     # ---------- liste: çizim ve eşitleme (taşıma planı) ----------
     def _style_tags(self) -> None:
-        dark = ctk.get_appearance_mode() == "Dark"
-        self.tree.tag_configure("group", background="#2a2f45" if dark else "#e0e7ff",
+        self.tree.tag_configure("group", background=ui.TREE_GROUP, foreground=ui.TEXT,
                                 font=("Segoe UI", 10, "bold"))
-        self.tree.tag_configure("on", foreground="#e5e7eb" if dark else "#1f2937")
-        self.tree.tag_configure("off", foreground="#6b7280" if dark else "#9ca3af")
+        self.tree.tag_configure("on", foreground=ui.TEXT)
+        self.tree.tag_configure("off", foreground=ui.TREE_DIM)
 
     def _group_text(self, name: str, items: list[Item], checked: set[int]) -> str:
         on = sum(it.idx in checked for it in items)
@@ -451,7 +461,7 @@ class OrganizerPage(ctk.CTkFrame):
                         pass
                 self.after(0, lambda: self._show_plan(sid, folder, plan, sizes, note))
             except Exception as e:
-                self.after(0, lambda: self._scan_failed(sid, e))
+                self.after(0, lambda err=e: self._scan_failed(sid, err))
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -540,19 +550,19 @@ class OrganizerPage(ctk.CTkFrame):
 
     # ---------- İzle sekmesi ----------
     def _build_watch(self, tab) -> None:
-        card = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="x", pady=(4, 0))
         self.watch_label = ctk.CTkLabel(card, text="Klasör ve mod yukarıdaki seçimle aynıdır.", anchor="w")
         self.watch_label.pack(fill="x", padx=18, pady=(16, 2))
         ctk.CTkLabel(card, text="Dosya boyutu 3 sn sabit kalınca taşınır; inmekte olan dosyalara dokunulmaz. "
                                 "İzleme modunda tüm yeni dosyalar yerleştirilir (seçim listesi yalnızca Düzenle sekmesi içindir).",
-                     text_color=MUTED, anchor="w", wraplength=760, justify="left").pack(fill="x", padx=18)
-        self.watch_btn = ctk.CTkButton(card, text="▶  İzlemeyi başlat", height=40, fg_color=ACCENT,
-                                       hover_color=ACCENT_HOVER, command=self.toggle_watch)
+                     text_color=ui.MUTED, anchor="w", wraplength=760, justify="left").pack(fill="x", padx=18)
+        self.watch_btn = ctk.CTkButton(card, text="▶  İzlemeyi başlat", height=40, fg_color=ui.ACCENT,
+                                       hover_color=ui.ACCENT_HOVER, command=self.toggle_watch)
         self.watch_btn.pack(anchor="w", padx=18, pady=16)
         self.watch_count = StatCard(tab, "Bu oturumda yerleştirilen dosya", "0")
         self.watch_count.pack(fill="x", pady=12)
-        self.log = ctk.CTkTextbox(tab, fg_color=CARD, corner_radius=14, state="disabled",
+        self.log = ctk.CTkTextbox(tab, fg_color=ui.CARD, corner_radius=14, state="disabled",
                                   font=ctk.CTkFont(family="Consolas", size=12))
         self.log.pack(fill="both", expand=True)
 
@@ -575,13 +585,15 @@ class OrganizerPage(ctk.CTkFrame):
 
     def _watch_ui(self, on: bool) -> None:
         if on:
-            self.watch_btn.configure(text="■  İzlemeyi durdur", fg_color=DANGER, hover_color=DANGER_HOVER)
+            self.watch_btn.configure(text="■  İzlemeyi durdur", fg_color=ui.DANGER, hover_color=ui.DANGER_HOVER, text_color=ui.DANGER_TEXT)
             self.watch_label.configure(text=f"İzlenen klasör: {self.folder_var.get()}")
         else:
-            self.watch_btn.configure(text="▶  İzlemeyi başlat", fg_color=ACCENT, hover_color=ACCENT_HOVER)
+            self.watch_btn.configure(text="▶  İzlemeyi başlat", fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER, text_color=ui.ACCENT_TEXT)
             self.watch_label.configure(text="Klasör ve mod yukarıdaki seçimle aynıdır.")
 
     def _drain_messages(self) -> None:
+        if not self.winfo_exists():   # tema değişiminde sayfa yıkıldıysa döngü durur
+            return
         wrote = False
         while True:
             try:

@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from ...fsutil import is_link
+
 TOP_FILES_PER_DIR = 30
 
 Progress = Callable[[int, str], None]  # (taranan dosya sayısı, geçerli klasör)
@@ -60,13 +62,6 @@ class _Context:
             self.progress(self.files, str(directory))
 
 
-def _is_link(entry: os.DirEntry) -> bool:
-    if entry.is_symlink():
-        return True
-    junction = getattr(entry, "is_junction", None)  # Python 3.12+
-    return bool(junction and junction())
-
-
 def _scan_dir(path: Path, ctx: _Context) -> DirNode:
     node = DirNode(path, path.name or str(path))
     try:
@@ -81,7 +76,7 @@ def _scan_dir(path: Path, ctx: _Context) -> DirNode:
             ctx.stopped = True
             break
         try:
-            if _is_link(entry):
+            if is_link(entry):
                 continue
             if entry.is_dir(follow_symlinks=False):
                 child = _scan_dir(Path(entry.path), ctx)

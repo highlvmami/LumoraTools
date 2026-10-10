@@ -12,19 +12,18 @@ from typing import Callable
 
 import customtkinter as ctk
 
-from . import __version__, _buildinfo, registry, ui, updater
+from . import __version__, _buildinfo, changelog, registry, themes, ui, updater
+from .dialogs import WhatsNewDialog
 from .contact_page import ContactPage
 from .guides_page import GuidesPage
 from .menu_editor import MenuEditor
-from .ui import ACCENT, ACCENT_HOVER, BG, CARD, MUTED, OK, SIDEBAR, TEXT
+from .theme_picker import ThemePicker
 
 
 def asset_path(name: str) -> Path:
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
     return base / "assets" / name
 
-THEMES = {"Koyu": "dark", "Açık": "light", "Sistem": "system"}
-NAV_HOVER = ("#d8dbe8", "#1c2030")
 FIXED_PAGES = ("home", "settings", "guides", "contact")  # araç olmayan, her zaman var olan sayfalar
 
 
@@ -35,6 +34,7 @@ class Hub(ctk.CTk):
         self.data_dir = Path(data_dir) if data_dir else Path(default_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings = self._load_settings()
+        self._had_settings = bool(self.settings)   # boşsa ilk kurulum: 'Yenilikler' gösterilmez
         self.all_tools = tools if tools is not None else registry.discover()
         self.menu_tools: list[registry.ToolInfo] = []  # kullanıcının sırasıyla hepsi (gizliler dahil)
         self.tools: list[registry.ToolInfo] = []       # kullanıcının sırasıyla yalnızca görünenler
@@ -45,21 +45,15 @@ class Hub(ctk.CTk):
         self.pages: dict[str, ctk.CTkFrame] = {}
         self.current: str | None = None
 
-        ctk.set_appearance_mode(self.settings.get("theme", "dark"))
+        ui.apply_theme(self.settings.get("theme"))   # eski 'dark/light/system' değerleri de çözülür
         self.title(f"LumoraTools  —  v{__version__}")
         self.geometry("1100x720")
         self.minsize(940, 620)
-        self.configure(fg_color=BG)
         ui.style_tree()
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
-        self._build_sidebar()
-        self.content = ctk.CTkFrame(self, fg_color="transparent")
-        self.content.grid(row=0, column=1, sticky="nsew", padx=26, pady=22)
-        self.content.grid_columnconfigure(0, weight=1)
-        self.content.grid_rowconfigure(1, weight=1)  # satır 0: güncelleme çubuğu, satır 1: sayfa
-        self._build_update_banner()
+        self._build_shell()
 
         self.upd_events: queue.Queue = queue.Queue()
         self.upd_status = ctk.StringVar(value="")
@@ -70,6 +64,7 @@ class Hub(ctk.CTk):
         self.after(200, self._start_tools)
         self.after(250, self._set_icon)  # CTk kendi simgesini 200 ms sonra koyar, ondan sonra değiştir
         self.after(300, self._poll_update_events)
+        self.after(1200, self._maybe_show_whats_new)
         if self.update_cfg.get("check_on_start", True):
             self.after(3000, lambda: self.check_updates(manual=False))
         self.protocol("WM_DELETE_WINDOW", self._close)
@@ -115,11 +110,39 @@ class Hub(ctk.CTk):
         return self.settings.setdefault("tools", {}).setdefault(tool_id, {})
 
     # ---------- iskelet ----------
+    def _build_shell(self) -> None:
+        """Kenar çubuğu, içerik alanı ve güncelleme çubuğu (tema değişince yeniden kurulur)."""
+        self.configure(fg_color=ui.BG)
+        self._build_sidebar()
+        self.content = ctk.CTkFrame(self, fg_color="transparent")
+        self.content.grid(row=0, column=1, sticky="nsew", padx=26, pady=22)
+        self.content.grid_columnconfigure(0, weight=1)
+        self.content.grid_rowconfigure(1, weight=1)  # satır 0: güncelleme çubuğu, satır 1: sayfa
+        self._build_update_banner()
+
+    def _rebuild_ui(self) -> None:
+        """Tema değişince arayüzü yeni renklerle baştan kurar. Araç servisleri (pano izleme vb.) ve ayarlar korunur."""
+        current = self.current
+        banner = None
+        if self.banner.winfo_ismapped():
+            has_button = self.banner_btn.winfo_ismapped()
+            banner = (self.banner_label.cget("text"), self.banner_btn.cget("text") if has_button else None,
+                      self.banner_btn.cget("command") if has_button else None)
+        for w in list(self.winfo_children()):
+            w.destroy()
+        self.pages.clear()
+        self.nav = {}
+        self.current = None
+        self._build_shell()
+        if banner:
+            self._show_banner(*banner)
+        self.show(current if self._known(current) else "home")
+
     def _known(self, key: str | None) -> bool:
         return key in FIXED_PAGES or any(t.id == key for t in self.tools)
 
     def _build_sidebar(self) -> None:
-        bar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=SIDEBAR)
+        bar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=ui.SIDEBAR)
         bar.grid(row=0, column=0, sticky="nsew")
         bar.grid_propagate(False)
         head = ctk.CTkFrame(bar, fg_color="transparent")
@@ -130,11 +153,11 @@ class Hub(ctk.CTk):
         ctk.CTkLabel(head, text="LumoraTools", font=ctk.CTkFont(size=20, weight="bold")).pack(
             side="left", padx=(10 if self._logo else 4, 0))
         ctk.CTkLabel(bar, text=f"Sürüm {__version__}", font=ctk.CTkFont(size=12, weight="bold"),
-                     text_color=("#3730a3", "#a5b4fc"), fg_color=("#e0e7ff", "#272b4a"), corner_radius=8,
+                     text_color=ui.ACCENT_SOFT_TEXT, fg_color=ui.ACCENT_SOFT, corner_radius=8,
                      height=24).pack(anchor="w", padx=22, pady=(2, 22), ipadx=8)
         self.nav: dict[str, ctk.CTkButton] = {}
         self._nav_button(bar, "home", "🏠  Ana sayfa")
-        ctk.CTkLabel(bar, text="ARAÇLAR", text_color=MUTED, font=ctk.CTkFont(size=11, weight="bold")).pack(
+        ctk.CTkLabel(bar, text="ARAÇLAR", text_color=ui.MUTED, font=ctk.CTkFont(size=11, weight="bold")).pack(
             anchor="w", padx=22, pady=(14, 4))
         self.tool_nav = ctk.CTkFrame(bar, fg_color="transparent")
         self.tool_nav.pack(fill="x")
@@ -152,7 +175,7 @@ class Hub(ctk.CTk):
         for t in self.tools:
             self._nav_button(self.tool_nav, t.id, f"{t.icon}  {t.name}")
         if self.current in self.nav:
-            self.nav[self.current].configure(fg_color=ACCENT, text_color="#ffffff")
+            self.nav[self.current].configure(fg_color=ui.ACCENT, text_color=ui.ACCENT_TEXT)
 
     def _load_logo(self):
         try:
@@ -164,7 +187,7 @@ class Hub(ctk.CTk):
 
     def _nav_button(self, bar, key: str, label: str, bottom: bool = False, pad_bottom: int = 3) -> None:
         b = ctk.CTkButton(bar, text=label, anchor="w", height=40, corner_radius=10, fg_color="transparent",
-                          text_color=TEXT, hover_color=NAV_HOVER, font=ctk.CTkFont(size=14),
+                          text_color=ui.TEXT, hover_color=ui.NAV_HOVER, font=ctk.CTkFont(size=14),
                           command=lambda: self.show(key))
         b.pack(fill="x", padx=14, pady=(3, pad_bottom) if bottom else 3, side="bottom" if bottom else "top")
         self.nav[key] = b
@@ -187,11 +210,11 @@ class Hub(ctk.CTk):
         if self.current:
             self.pages[self.current].grid_forget()
             if self.current in self.nav:
-                self.nav[self.current].configure(fg_color="transparent", text_color=TEXT)
+                self.nav[self.current].configure(fg_color="transparent", text_color=ui.TEXT)
         if key not in self.pages:
             self.pages[key] = self._page_for(key)
         self.pages[key].grid(row=1, column=0, sticky="nsew")
-        self.nav[key].configure(fg_color=ACCENT, text_color="#ffffff")
+        self.nav[key].configure(fg_color=ui.ACCENT, text_color=ui.ACCENT_TEXT)
         self.current = key
 
     # ---------- sayfalar ----------
@@ -202,31 +225,48 @@ class Hub(ctk.CTk):
         grid.pack(fill="both", expand=True)
         grid.grid_columnconfigure((0, 1), weight=1, uniform="c")
         for i, t in enumerate(self.tools):
-            card = ctk.CTkFrame(grid, fg_color=CARD, corner_radius=16)
+            card = ctk.CTkFrame(grid, fg_color=ui.CARD, corner_radius=16)
             card.grid(row=i // 2, column=i % 2, sticky="nsew", padx=7, pady=7)
             ctk.CTkLabel(card, text=t.icon, font=ctk.CTkFont(size=34)).pack(anchor="w", padx=20, pady=(18, 0))
             ctk.CTkLabel(card, text=t.name, font=ctk.CTkFont(size=18, weight="bold")).pack(
                 anchor="w", padx=20, pady=(4, 0))
-            ctk.CTkLabel(card, text=t.description, text_color=MUTED, wraplength=360, justify="left").pack(
+            ctk.CTkLabel(card, text=t.description, text_color=ui.MUTED, wraplength=360, justify="left").pack(
                 anchor="w", padx=20, pady=(2, 10))
-            ctk.CTkButton(card, text="Aç", width=90, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+            ctk.CTkButton(card, text="Aç", width=90, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                           command=lambda k=t.id: self.show(k)).pack(anchor="w", padx=20, pady=(0, 18))
         return page
 
     def _build_settings(self) -> ctk.CTkFrame:
         page = ctk.CTkScrollableFrame(self.content, fg_color="transparent")
         ui.page_header(page, "Ayarlar", "Tüm araçlar için ortak görünüm ve menü.")
-        card = ctk.CTkFrame(page, fg_color=CARD, corner_radius=14)
-        card.pack(fill="x")
-        ctk.CTkLabel(card, text="Tema").pack(side="left", padx=18, pady=18)
-        seg = ctk.CTkSegmentedButton(card, values=list(THEMES), selected_color=ACCENT,
-                                     selected_hover_color=ACCENT_HOVER, command=self._theme_changed)
-        seg.pack(side="left", padx=8)
-        seg.set({v: k for k, v in THEMES.items()}.get(self.settings.get("theme", "dark"), "Koyu"))
+        self._build_theme_settings(page)
         self._build_menu_settings(page)
         self._build_update_settings(page)
-        ctk.CTkLabel(page, text=f"Veriler: {self.data_dir}", text_color=MUTED).pack(anchor="w", pady=12)
+        ctk.CTkLabel(page, text=f"Veriler: {self.data_dir}", text_color=ui.MUTED).pack(anchor="w", pady=12)
         return page
+
+    # ---------- tema ----------
+    def _build_theme_settings(self, page) -> None:
+        card = ctk.CTkFrame(page, fg_color=ui.CARD, corner_radius=14)
+        card.pack(fill="x")
+        ctk.CTkLabel(card, text="Tema", font=ctk.CTkFont(size=15, weight="bold")).pack(anchor="w", padx=18, pady=(16, 0))
+        ctk.CTkLabel(card, text=f"{len(themes.THEMES)} tema var; birine tıklayınca uygulama hemen yeni renklere geçer. "
+                                "'Sistem' Windows'un koyu/açık ayarını izler.",
+                     text_color=ui.MUTED, anchor="w", justify="left", wraplength=700).pack(fill="x", padx=18, pady=(2, 8))
+        current = self.settings.get("theme")
+        current = themes.LEGACY.get(current, current) if current else themes.DEFAULT
+        ThemePicker(card, current if current in themes.choices() else themes.DEFAULT, self.set_theme).pack(
+            fill="x", padx=12, pady=(0, 14))
+
+    def set_theme(self, name: str) -> None:
+        """Temayı uygular, kaydeder ve arayüzü yeni renklerle yeniden kurar."""
+        if name not in themes.choices():
+            return
+        self.settings["theme"] = name
+        self.save_settings()
+        ui.apply_theme(name)
+        ui.style_tree()
+        self._rebuild_ui()
 
     # ---------- menü düzeni ----------
     @property
@@ -238,7 +278,7 @@ class Hub(ctk.CTk):
             self.all_tools, self.menu_cfg.get("order"), set(self.menu_cfg.get("hidden", [])))
 
     def _build_menu_settings(self, page) -> None:
-        card = ctk.CTkFrame(page, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(page, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="x", pady=(14, 0))
         head = ctk.CTkFrame(card, fg_color="transparent")
         head.pack(fill="x", padx=18, pady=(16, 0))
@@ -246,7 +286,7 @@ class Hub(ctk.CTk):
         ui.ghost_button(head, "Varsayılana dön", self.reset_menu, width=130).pack(side="right")
         ctk.CTkLabel(card, text="Araçları ⠿ tutamacından sürükleyerek sırala; anahtarla menüden gizle veya göster. "
                                 "Gizlenen aracın arka plan işi (ör. pano kaydı) de durur.",
-                     text_color=MUTED, anchor="w", wraplength=700, justify="left").pack(fill="x", padx=18, pady=(2, 10))
+                     text_color=ui.MUTED, anchor="w", wraplength=700, justify="left").pack(fill="x", padx=18, pady=(2, 10))
         self.menu_editor = MenuEditor(
             card, entries=[(t.id, f"{t.icon}  {t.name}") for t in self.menu_tools],
             order=[t.id for t in self.menu_tools], hidden=set(self.menu_cfg.get("hidden", [])),
@@ -281,6 +321,23 @@ class Hub(ctk.CTk):
         self.menu_editor.set_state(ids, set())
         self.set_menu(ids, set())
 
+    # ---------- yenilikler ----------
+    def _maybe_show_whats_new(self) -> None:
+        """Yükseltme sonrası ilk açılışta, görülmeyen sürümlerin notlarını gösterir (ilk kurulumda göstermez)."""
+        if not self.winfo_exists():
+            return
+        previous = self.settings.get("last_seen_version")
+        entries = changelog.entries_between(previous, __version__, fresh_install=not self._had_settings and previous is None)
+        if previous != __version__:
+            self.settings["last_seen_version"] = __version__
+            self.save_settings()
+        if entries:
+            WhatsNewDialog(self, entries)
+
+    def show_whats_new(self) -> None:
+        """Ayarlar'dan: son birkaç sürümün notları."""
+        WhatsNewDialog(self, changelog.recent(4), title="Yenilikler")
+
     # ---------- güncelleme ----------
     @property
     def update_cfg(self) -> dict:
@@ -290,13 +347,13 @@ class Hub(ctk.CTk):
         return (self.update_cfg.get("manifest_url") or _buildinfo.UPDATE_URL).strip()
 
     def _build_update_settings(self, page) -> None:
-        card = ctk.CTkFrame(page, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(page, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="x", pady=(14, 0))
         ctk.CTkLabel(card, text="Güncelleme", font=ctk.CTkFont(size=15, weight="bold")).pack(
             anchor="w", padx=18, pady=(16, 2))
         ctk.CTkLabel(card, text=f"Kurulu sürüm: v{__version__}" + ("" if updater.is_frozen()
                      else "   (geliştirme modu: yalnızca denetler, .exe sürümünde kurar)"),
-                     text_color=MUTED).pack(anchor="w", padx=18)
+                     text_color=ui.MUTED).pack(anchor="w", padx=18)
         self.url_entry = ctk.CTkEntry(card, height=36, placeholder_text="Manifest adresi (https://…/manifest.json)")
         self.url_entry.pack(fill="x", padx=18, pady=(10, 6))
         if self.update_cfg.get("manifest_url"):
@@ -308,13 +365,14 @@ class Hub(ctk.CTk):
         row.pack(fill="x", padx=18, pady=(0, 6))
         self.check_var = ctk.BooleanVar(value=self.update_cfg.get("check_on_start", True))
         self.auto_var = ctk.BooleanVar(value=self.update_cfg.get("auto_install", True))
-        ctk.CTkSwitch(row, text="Açılışta denetle", variable=self.check_var, progress_color=ACCENT,
+        ctk.CTkSwitch(row, text="Açılışta denetle", variable=self.check_var, progress_color=ui.ACCENT,
                       command=self._save_update_cfg).pack(side="left")
-        ctk.CTkSwitch(row, text="Bulunca otomatik kur", variable=self.auto_var, progress_color=ACCENT,
+        ctk.CTkSwitch(row, text="Bulunca otomatik kur", variable=self.auto_var, progress_color=ui.ACCENT,
                       command=self._save_update_cfg).pack(side="left", padx=18)
-        ctk.CTkButton(row, text="Şimdi denetle", width=120, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(row, text="Şimdi denetle", width=120, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=lambda: (self._save_update_cfg(), self.check_updates(manual=True))).pack(side="right")
-        ctk.CTkLabel(card, textvariable=self.upd_status, text_color=MUTED, anchor="w").pack(
+        ui.ghost_button(row, "Yenilikler", self.show_whats_new, width=100).pack(side="right", padx=8)
+        ctk.CTkLabel(card, textvariable=self.upd_status, text_color=ui.MUTED, anchor="w").pack(
             fill="x", padx=18, pady=(0, 14))
 
     def _save_update_cfg(self) -> None:
@@ -322,11 +380,11 @@ class Hub(ctk.CTk):
                                auto_install=self.auto_var.get())
 
     def _build_update_banner(self) -> None:
-        self.banner = ctk.CTkFrame(self.content, fg_color=("#e0e7ff", "#272b4a"), corner_radius=12)
-        self.banner_label = ctk.CTkLabel(self.banner, text="", anchor="w")
+        self.banner = ctk.CTkFrame(self.content, fg_color=ui.ACCENT_SOFT, corner_radius=12)
+        self.banner_label = ctk.CTkLabel(self.banner, text="", anchor="w", text_color=ui.ACCENT_SOFT_TEXT)
         self.banner_label.pack(side="left", padx=16, pady=10)
-        self.banner_btn = ctk.CTkButton(self.banner, text="", width=130, height=30, fg_color=ACCENT,
-                                        hover_color=ACCENT_HOVER)
+        self.banner_btn = ctk.CTkButton(self.banner, text="", width=130, height=30, fg_color=ui.ACCENT,
+                                        hover_color=ui.ACCENT_HOVER)
         self.banner_btn.pack(side="right", padx=12)
         # banner başta gizli (grid ile sadece gerektiğinde gösterilir)
 
@@ -429,11 +487,6 @@ class Hub(ctk.CTk):
     def auto_var_value(self) -> bool:
         return bool(self.update_cfg.get("auto_install", True))
 
-    def _theme_changed(self, label: str) -> None:
-        self.settings["theme"] = THEMES[label]
-        ctk.set_appearance_mode(THEMES[label])
-        ui.style_tree()
-
     # ---------- yaşam döngüsü ----------
     def _start_tools(self) -> None:
         for t in self.tools:  # gizli araçlar arka planda çalışmaz
@@ -459,6 +512,15 @@ class Hub(ctk.CTk):
         self.destroy()
 
 
+def _importable(module: str) -> bool:
+    import importlib
+    try:
+        importlib.import_module(module)
+        return True
+    except ImportError:
+        return False
+
+
 def _pillow_version() -> str:
     try:
         import PIL
@@ -476,7 +538,9 @@ def main(argv: list[str] | None = None) -> None:
                   f"tools={','.join(t.id for t in tools)}\n"
                   f"errors={' | '.join(registry.load_errors) or '-'}\n"
                   f"pillow={_pillow_version()}\n"
-                  f"logo={asset_path('logo.png').exists()} icon={asset_path('icon.ico').exists()}\n")
+                  f"logo={asset_path('logo.png').exists()} icon={asset_path('icon.ico').exists()}\n"
+                  f"imagegrab={_importable('PIL.ImageGrab')} winreg={_importable('winreg')} "
+                  f"darkdetect={_importable('darkdetect')}\n")
         if len(argv) > 1:
             Path(argv[1]).write_text(report, encoding="utf-8")
         else:

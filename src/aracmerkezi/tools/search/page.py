@@ -11,8 +11,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from ... import ui
-from ...ui import (ACCENT, ACCENT_HOVER, CARD, DANGER, DANGER_HOVER, MUTED, OK, Spinner, StatCard,
-                   ghost_button, make_tree)
+from ...ui import Spinner, StatCard, ghost_button, make_tree
 from .index import Hit, Index
 
 
@@ -55,8 +54,8 @@ class SearchPage(ctk.CTkFrame):
         self._debounce: str | None = None
 
         ui.page_header(self, "Yerel Arama", "Bilgisayarındaki dosyaların içinde anında ara (SQLite FTS5).")
-        self.tabs = ctk.CTkTabview(self, fg_color="transparent", segmented_button_selected_color=ACCENT,
-                                   segmented_button_selected_hover_color=ACCENT_HOVER)
+        self.tabs = ctk.CTkTabview(self, fg_color="transparent", segmented_button_selected_color=ui.SEG_ON,
+                                   segmented_button_selected_hover_color=ui.SEG_ON_HOVER)
         self.tabs.pack(fill="both", expand=True)
         self._build_search(self.tabs.add("Ara"))
         self._build_index(self.tabs.add("Dizin"))
@@ -68,7 +67,7 @@ class SearchPage(ctk.CTkFrame):
 
     # ---------- Ara sekmesi ----------
     def _build_search(self, tab) -> None:
-        bar = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
+        bar = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=14)
         bar.pack(fill="x", pady=(4, 10))
         row = ctk.CTkFrame(bar, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=14)
@@ -77,7 +76,7 @@ class SearchPage(ctk.CTkFrame):
                                   placeholder_text="🔎  Dosya içeriklerinde ara…  (ör. bütçe planı)")
         self.entry.pack(side="left", fill="x", expand=True)
         self.entry.bind("<KeyRelease>", lambda _e: self._schedule_search())
-        self.count_label = ctk.CTkLabel(row, text="", text_color=MUTED, width=120)
+        self.count_label = ctk.CTkLabel(row, text="", text_color=ui.MUTED, width=120)
         self.count_label.pack(side="left", padx=(12, 0))
 
         body = ctk.CTkFrame(tab, fg_color="transparent")
@@ -86,23 +85,23 @@ class SearchPage(ctk.CTkFrame):
         body.grid_rowconfigure(0, weight=3)
         body.grid_rowconfigure(1, weight=2)
 
-        table = ctk.CTkFrame(body, fg_color=CARD, corner_radius=14)
+        table = ctk.CTkFrame(body, fg_color=ui.CARD, corner_radius=14)
         table.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
         self.tree = make_tree(table, {"name": ("Dosya", 240), "folder": ("Klasör", 420)})
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self._show_preview())
         self.tree.bind("<Double-1>", lambda _e: self._act(open_path))
-        self.empty = ctk.CTkLabel(table, text="", text_color=MUTED)
+        self.empty = ctk.CTkLabel(table, text="", text_color=ui.MUTED)
         self.empty.place(relx=0.5, rely=0.5, anchor="center")
         self._set_empty("Aramaya başlamak için yukarıya yaz.")
 
-        prev = ctk.CTkFrame(body, fg_color=CARD, corner_radius=14)
+        prev = ctk.CTkFrame(body, fg_color=ui.CARD, corner_radius=14)
         prev.grid(row=1, column=0, sticky="nsew")
         self.preview = ctk.CTkTextbox(prev, fg_color="transparent", wrap="word", state="disabled")
         self.preview.pack(fill="both", expand=True, padx=10, pady=(10, 4))
-        self.preview.tag_config("hit", background="#fde68a", foreground="#111827")
+        self.preview.tag_config("hit", background=ui.HIT_BG, foreground=ui.HIT_FG)
         btns = ctk.CTkFrame(prev, fg_color="transparent")
         btns.pack(fill="x", padx=12, pady=(0, 12))
-        ctk.CTkButton(btns, text="Dosyayı aç", width=100, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(btns, text="Dosyayı aç", width=100, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=lambda: self._act(open_path)).pack(side="left")
         ghost_button(btns, "Klasörde göster", lambda: self._act(reveal_path), width=130).pack(side="left", padx=8)
 
@@ -180,7 +179,7 @@ class SearchPage(ctk.CTkFrame):
         for i, c in enumerate((self.stat_files, self.stat_text, self.stat_size)):
             c.grid(row=0, column=i, sticky="ew", padx=(0 if i == 0 else 7, 0 if i == 2 else 7))
 
-        card = ctk.CTkFrame(tab, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(tab, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="both", expand=True)
         self.spinner = Spinner(card)  # dizinleme sürerken kartın ortasında döner
         ctk.CTkLabel(card, text="Dizinlenecek klasörler", font=ctk.CTkFont(size=15, weight="bold")).pack(
@@ -190,17 +189,17 @@ class SearchPage(ctk.CTkFrame):
 
         row = ctk.CTkFrame(card, fg_color="transparent")
         row.pack(fill="x", padx=18, pady=(8, 4))
-        ctk.CTkButton(row, text="＋  Klasör ekle", width=120, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(row, text="＋  Klasör ekle", width=120, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=self.add_root).pack(side="left")
-        self.run_btn = ctk.CTkButton(row, text="⟳  Dizinle / güncelle", width=160, fg_color=OK,
-                                     hover_color=ui.OK_HOVER, command=self.toggle_index)
+        self.run_btn = ctk.CTkButton(row, text="⟳  Dizinle / güncelle", width=160, fg_color=ui.OK,
+                                     hover_color=ui.OK_HOVER, text_color=ui.OK_TEXT, command=self.toggle_index)
         self.run_btn.pack(side="left", padx=8)
         ghost_button(row, "Dizini sıfırla", self.reset_index, width=120, danger=True).pack(side="left")
-        self.progress = ctk.CTkLabel(card, text="", text_color=MUTED, anchor="w")
+        self.progress = ctk.CTkLabel(card, text="", text_color=ui.MUTED, anchor="w")
         self.progress.pack(fill="x", padx=18, pady=(2, 4))
         ctk.CTkLabel(card, text="Metin dosyaları, kod, .docx ve .pdf (en fazla 5 MB) dizinlenir. "
                                 "Değişmeyen dosyalar tekrar okunmaz, silinenler dizinden düşer.",
-                     text_color=MUTED, anchor="w", wraplength=700, justify="left").pack(
+                     text_color=ui.MUTED, anchor="w", wraplength=700, justify="left").pack(
             fill="x", padx=18, pady=(0, 14))
 
     def _refresh_roots(self) -> None:
@@ -208,13 +207,13 @@ class SearchPage(ctk.CTkFrame):
             w.destroy()
         if not self.roots:
             ctk.CTkLabel(self.roots_frame, text="Henüz klasör eklenmedi. 'Klasör ekle' ile başla.",
-                         text_color=MUTED).pack(anchor="w", padx=8, pady=8)
+                         text_color=ui.MUTED).pack(anchor="w", padx=8, pady=8)
         for r in self.roots:
             row = ctk.CTkFrame(self.roots_frame, fg_color="transparent")
             row.pack(fill="x", pady=2)
             ctk.CTkLabel(row, text=f"📂  {r}", anchor="w").pack(side="left", padx=8)
-            ctk.CTkButton(row, text="✕", width=30, height=26, fg_color="transparent", text_color=DANGER,
-                          hover_color=("#fee2e2", "#3a1d24"), command=lambda p=r: self.remove_root(p)
+            ctk.CTkButton(row, text="✕", width=30, height=26, fg_color="transparent", text_color=ui.DANGER,
+                          hover_color=ui.DANGER_SOFT, command=lambda p=r: self.remove_root(p)
                           ).pack(side="right", padx=4)
 
     def _refresh_stats(self) -> None:
@@ -261,7 +260,7 @@ class SearchPage(ctk.CTkFrame):
             return
         self.indexing = True
         self.stop_event.clear()
-        self.run_btn.configure(text="■  Durdur", fg_color=DANGER, hover_color=DANGER_HOVER)
+        self.run_btn.configure(text="■  Durdur", fg_color=ui.DANGER, hover_color=ui.DANGER_HOVER, text_color=ui.DANGER_TEXT)
         self.spinner.start("Dosyalar dizinleniyor…")
         roots, db = list(self.roots), self.db_path
 
@@ -280,6 +279,8 @@ class SearchPage(ctk.CTkFrame):
         self.after(200, self._poll_events)
 
     def _poll_events(self) -> None:
+        if not self.winfo_exists():
+            return
         finished = False
         while True:
             try:
@@ -302,7 +303,7 @@ class SearchPage(ctk.CTkFrame):
         if finished:
             self.indexing = False
             self.spinner.stop()
-            self.run_btn.configure(text="⟳  Dizinle / güncelle", fg_color=OK, hover_color=ui.OK_HOVER)
+            self.run_btn.configure(text="⟳  Dizinle / güncelle", fg_color=ui.OK, hover_color=ui.OK_HOVER, text_color=ui.OK_TEXT)
             self._refresh_stats()
             self.run_search()
         else:

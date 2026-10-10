@@ -14,7 +14,7 @@ from duzenle import engine
 
 from ... import recycle, ui
 from ...date_bar import DateFilterBar
-from ...ui import ACCENT, ACCENT_HOVER, CARD, MUTED, OK, Spinner, ghost_button, make_tree
+from ...ui import Spinner, ghost_button, make_tree
 from . import library as lib
 from .service import ShotService, get_service
 
@@ -74,34 +74,34 @@ class ScreenshotsPage(ctk.CTkFrame):
 
     # ---------- üst kart: klasör, düzenleme, izleme ----------
     def _build_top(self) -> None:
-        card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14)
+        card = ctk.CTkFrame(self, fg_color=ui.CARD, corner_radius=14)
         card.pack(fill="x")
         row = ctk.CTkFrame(card, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=(14, 6))
         ctk.CTkEntry(row, textvariable=self.folder_var, height=36, corner_radius=10,
                      placeholder_text="Ekran görüntüleri klasörü").pack(side="left", fill="x", expand=True)
-        ctk.CTkButton(row, text="Gözat", width=80, height=36, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(row, text="Gözat", width=80, height=36, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=self.browse).pack(side="left", padx=(8, 0))
         ghost_button(row, "Varsayılan klasör", self.use_default, width=130).pack(side="left", padx=(8, 0))
         row2 = ctk.CTkFrame(card, fg_color="transparent")
         row2.pack(fill="x", padx=16, pady=(0, 6))
-        ctk.CTkLabel(row2, text="Klasör düzeni", text_color=MUTED).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(row2, text="Klasör düzeni", text_color=ui.MUTED).pack(side="left", padx=(0, 8))
         ctk.CTkSegmentedButton(row2, values=list(lib.FORMATS), variable=self.format_var, height=32,
-                               selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
+                               selected_color=ui.SEG_ON, selected_hover_color=ui.SEG_ON_HOVER,
                                command=lambda _v: self._settings_changed()).pack(side="left")
-        ctk.CTkButton(row2, text="📅  Şimdi tarihe göre düzenle", height=32, fg_color=OK,
-                      hover_color=ui.OK_HOVER, command=self.organize_now).pack(side="left", padx=12)
+        ctk.CTkButton(row2, text="📅  Şimdi tarihe göre düzenle", height=32, fg_color=ui.OK,
+                      hover_color=ui.OK_HOVER, text_color=ui.OK_TEXT, command=self.organize_now).pack(side="left", padx=12)
         ghost_button(row2, "↩  Geri al", self.undo, width=100, danger=True).pack(side="left")
         row3 = ctk.CTkFrame(card, fg_color="transparent")
         row3.pack(fill="x", padx=16, pady=(0, 12))
         ctk.CTkSwitch(row3, text="Yeni ekran görüntülerini otomatik düzenle (uygulama açıkken arka planda)",
-                      variable=self.watch_var, progress_color=OK, command=self.toggle_watch).pack(side="left")
-        self.status = ctk.CTkLabel(card, text="", text_color=MUTED, anchor="w", justify="left", wraplength=800)
+                      variable=self.watch_var, progress_color=ui.OK, command=self.toggle_watch).pack(side="left")
+        self.status = ctk.CTkLabel(card, text="", text_color=ui.MUTED, anchor="w", justify="left", wraplength=800)
         self.status.pack(fill="x", padx=18, pady=(0, 12))
 
     # ---------- arama ve liste ----------
     def _build_browser(self) -> None:
-        bar = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14)
+        bar = ctk.CTkFrame(self, fg_color=ui.CARD, corner_radius=14)
         bar.pack(fill="x", pady=(10, 8))
         row = ctk.CTkFrame(bar, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=(12, 6))
@@ -109,7 +109,7 @@ class ScreenshotsPage(ctk.CTkFrame):
                                   placeholder_text="🔎  Ad, not, klasör veya tarih ara  (ör. 11.10.2026)")
         self.entry.pack(side="left", fill="x", expand=True)
         self.entry.bind("<KeyRelease>", lambda _e: self._schedule_filter())
-        self.count = ctk.CTkLabel(row, text="", text_color=MUTED, width=170, anchor="e")
+        self.count = ctk.CTkLabel(row, text="", text_color=ui.MUTED, width=170, anchor="e")
         self.count.pack(side="left", padx=(10, 0))
         self.date_bar = DateFilterBar(bar, on_change=self.render)
         self.date_bar.pack(fill="x", padx=16, pady=(0, 8))
@@ -117,7 +117,7 @@ class ScreenshotsPage(ctk.CTkFrame):
         row3.pack(fill="x", padx=16, pady=(0, 12))
         ghost_button(row3, "☑ Tümünü seç", self.select_all, width=116).pack(side="left")
         ghost_button(row3, "☐ Seçimi kaldır", self.clear_selection, width=126).pack(side="left", padx=6)
-        self.sel_label = ctk.CTkLabel(row3, text="Ctrl / Shift ile birden çok görüntü seçebilirsin", text_color=MUTED)
+        self.sel_label = ctk.CTkLabel(row3, text="Ctrl / Shift ile birden çok görüntü seçebilirsin", text_color=ui.MUTED)
         self.sel_label.pack(side="left", padx=10)
         self.delete_btn = ghost_button(row3, "🗑  Seçilenleri sil", self.delete_selected, width=150, danger=True)
         self.delete_btn.pack(side="right")
@@ -129,7 +129,7 @@ class ScreenshotsPage(ctk.CTkFrame):
         body.grid_columnconfigure(1, weight=2, uniform="b")
         body.grid_rowconfigure(0, weight=1)
 
-        table = ctk.CTkFrame(body, fg_color=CARD, corner_radius=14)
+        table = ctk.CTkFrame(body, fg_color=ui.CARD, corner_radius=14)
         table.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
         self.tree = make_tree(table, {"name": ("Ad", 230), "date": ("Tarih", 112), "size": ("Boyut", 70),
                                       "note": ("Not", 150)})
@@ -141,25 +141,25 @@ class ScreenshotsPage(ctk.CTkFrame):
         self.tree.bind("<Key>", lambda _e: setattr(self, "_last_click", None), add="+")  # klavye: odak geçerli
         self.tree.bind("<Delete>", lambda _e: self.delete_selected())
         self.tree.bind("<Control-a>", lambda _e: (self.select_all(), "break")[1])
-        self.empty = ctk.CTkLabel(table, text="", text_color=MUTED)
+        self.empty = ctk.CTkLabel(table, text="", text_color=ui.MUTED)
         self.empty.place(relx=0.5, rely=0.5, anchor="center")
         self.spinner = Spinner(table)
 
-        side = ctk.CTkFrame(body, fg_color=CARD, corner_radius=14)
+        side = ctk.CTkFrame(body, fg_color=ui.CARD, corner_radius=14)
         side.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
         # alttan yukarı paketlenir: pencere küçülünce önizleme küçülür, not ve düğmeler kırpılmaz
         btns = ctk.CTkFrame(side, fg_color="transparent")
         btns.pack(side="bottom", fill="x", padx=12, pady=(0, 12))
-        ctk.CTkButton(btns, text="Notu kaydet", width=96, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+        ctk.CTkButton(btns, text="Notu kaydet", width=96, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                       command=self.save_note).pack(side="left")
         ghost_button(btns, "Aç", lambda: self._act(open_file), width=56).pack(side="left", padx=6)
         ghost_button(btns, "Klasörde göster", lambda: self._act(reveal_file), width=120).pack(side="left")
         self.note_entry = ctk.CTkEntry(side, height=34, placeholder_text="📝  Bu görüntü için not…")
         self.note_entry.pack(side="bottom", fill="x", padx=12, pady=(8, 8))
         self.note_entry.bind("<Return>", lambda _e: self.save_note())
-        self.detail = ctk.CTkLabel(side, text="", text_color=MUTED, anchor="w", justify="left", wraplength=380)
+        self.detail = ctk.CTkLabel(side, text="", text_color=ui.MUTED, anchor="w", justify="left", wraplength=380)
         self.detail.pack(side="bottom", fill="x", padx=14)
-        self.preview = ctk.CTkLabel(side, text="Bir görüntü seç", text_color=MUTED, width=PREVIEW_BOX[0],
+        self.preview = ctk.CTkLabel(side, text="Bir görüntü seç", text_color=ui.MUTED, width=PREVIEW_BOX[0],
                                     height=120)
         self.preview.pack(side="top", fill="both", expand=True, padx=10, pady=(10, 4))
 
@@ -467,6 +467,8 @@ class ScreenshotsPage(ctk.CTkFrame):
 
     # ---------- arka plan izlemenin haberleri ----------
     def _poll(self) -> None:
+        if not self.winfo_exists():
+            return
         got = None
         while True:
             try:
