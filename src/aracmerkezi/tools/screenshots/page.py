@@ -60,6 +60,7 @@ class ScreenshotsPage(ctk.CTkFrame):
         self._token = 0
         self._img = None            # CTkImage referansı (silinmesin)
         self._blank = None          # görünmez yer tutucu görüntü (bkz. _set_preview)
+        self._last_click: str | None = None   # listede son tıklanan satır (çoklu seçimde önizlenir)
         self._filter_job: str | None = None
         self._reload_job: str | None = None
 
@@ -136,6 +137,8 @@ class ScreenshotsPage(ctk.CTkFrame):
         self.tree.column("size", stretch=False, anchor="e")
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self._show_preview())
         self.tree.bind("<Double-1>", lambda _e: self._act(open_file))
+        self.tree.bind("<Button-1>", self._remember_click, add="+")
+        self.tree.bind("<Key>", lambda _e: setattr(self, "_last_click", None), add="+")  # klavye: odak geçerli
         self.tree.bind("<Delete>", lambda _e: self.delete_selected())
         self.tree.bind("<Control-a>", lambda _e: (self.select_all(), "break")[1])
         self.empty = ctk.CTkLabel(table, text="", text_color=MUTED)
@@ -232,9 +235,23 @@ class ScreenshotsPage(ctk.CTkFrame):
         return [self.visible[i] for i in self.tree.selection() if i in self.visible]
 
     def _selected(self) -> lib.Shot | None:
-        """Yalnızca tek görüntü seçiliyken o görüntü (not/aç/klasörde göster tek görüntüye uygulanır)."""
-        shots = self._selected_list()
-        return shots[0] if len(shots) == 1 else None
+        """Önizlenen görüntü: çoklu seçimde son tıklanan (odaktaki); o seçimden çıkarıldıysa kalanların sonuncusu.
+
+        Not, 'Aç' ve 'Klasörde göster' bu görüntüye uygulanır; silme ise seçimin tamamına.
+        """
+        sel = [i for i in self.tree.selection() if i in self.visible]
+        if not sel:
+            return None
+        # ttk, Ctrl+tıklamada odağı taşımaz; bu yüzden son tıklanan satırı kendimiz izleriz.
+        # Klavyeyle gezilince (ok tuşları) odaktaki satır geçerlidir.
+        for candidate in (self._last_click, self.tree.focus()):
+            if candidate in sel:
+                return self.visible[candidate]
+        return self.visible[sel[-1]]
+
+    def _remember_click(self, event) -> None:
+        if self.tree.identify_region(event.x, event.y) in ("tree", "cell"):
+            self._last_click = self.tree.identify_row(event.y) or self._last_click
 
     def _update_selection_ui(self, shots: list[lib.Shot]) -> None:
         n = len(shots)
@@ -274,11 +291,6 @@ class ScreenshotsPage(ctk.CTkFrame):
         self._update_selection_ui(shots)
         shot = self._selected()
         self.note_entry.delete(0, "end")
-        if len(shots) > 1:  # çoklu seçim: görüntü yerine özet göster
-            self._set_preview(None, f"{len(shots)} görüntü seçili")
-            self.detail.configure(text=f"Toplam {human_size(sum(s.size for s in shots))}\n"
-                                       "🗑 ile hepsini Geri Dönüşüm Kutusu'na taşıyabilirsin.")
-            return
         if not shot:
             self._set_preview(None, "Bir görüntü seç")
             self.detail.configure(text="")
@@ -302,8 +314,12 @@ class ScreenshotsPage(ctk.CTkFrame):
         except ValueError:
             where = shot.path.parent
         where_text = "(ana klasör)" if str(where) == "." else str(where)
-        self.detail.configure(text=f"{shot.path.name}\n{dims}{human_size(shot.size)}   ·   "
-                                   f"{datetime.fromtimestamp(shot.mtime):%d.%m.%Y %H:%M}\n📁 {where_text}")
+        text = (f"{shot.path.name}\n{dims}{human_size(shot.size)}   ·   "
+                f"{datetime.fromtimestamp(shot.mtime):%d.%m.%Y %H:%M}\n📁 {where_text}")
+        if len(shots) > 1:  # çoklu seçim: önizleme son tıklanan görüntü, sayı altta
+            text += (f"\n▣ {len(shots)} görüntü seçili ({human_size(sum(s.size for s in shots))}) "
+                     "— önizleme son tıkladığın")
+        self.detail.configure(text=text)
 
     def delete_selected(self) -> None:
         """Seçili görüntüleri kalıcı silmek yerine Geri Dönüşüm Kutusu'na taşır (geri yüklenebilir)."""

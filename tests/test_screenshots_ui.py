@@ -26,10 +26,13 @@ def page(tmp_path, monkeypatch):
         ts = datetime(2026, 10, 11, 8 + i).timestamp()
         os.utime(p, (ts, ts))
     from aracmerkezi.tools.screenshots import TOOL
+    hub.geometry("1100x820+10+10")
     sp = TOOL.build(hub.content, hub)
+    sp.grid(row=1, column=0, sticky="nsew")   # gerçekten göster: satırların ekran koordinatı olsun
     sp.folder_var.set(str(shots))
     sp.shots = lib.list_shots(shots)   # arka plan taramasını beklemeden: ana iş parçacığında doldur
     sp.render()
+    hub.update()
     errors = []
     hub.report_callback_exception = lambda *a: errors.append(a[1])
     sp.errors = errors
@@ -51,17 +54,48 @@ def test_preview_survives_clearing_and_reselecting(page):
     assert sp.preview.cget("text") == "" and sp._img is not sp._blank_image()          # yeniden görüntü gösterildi
 
 
-def test_preview_survives_multi_select_then_single(page):
+def _click(sp, iid, ctrl=False):
+    """Gerçek fare tıklaması (Ctrl'li ya da Ctrl'siz) gönderir."""
+    sp.update()
+    x, y, w, h = sp.tree.bbox(iid)
+    mod = "Control-" if ctrl else ""
+    sp.tree.event_generate(f"<{mod}Button-1>", x=x + 20, y=y + h // 2)
+    sp.tree.event_generate(f"<{mod}ButtonRelease-1>", x=x + 20, y=y + h // 2)
+    sp.update()
+
+
+def test_ctrl_click_previews_the_last_clicked_image(page):
+    """Ctrl ile çoklu seçimde 'N görüntü seçili' yerine son tıklanan görüntü önizlenir."""
     sp = page
-    sp.tree.selection_set("0")
-    sp.update()
+    _click(sp, "0")
+    _click(sp, "2", ctrl=True)
+    assert set(sp.tree.selection()) == {"0", "2"}
+    assert not sp.errors, sp.errors
+    assert sp.preview.cget("text") == "" and sp._img is not sp._blank_image()      # görüntü gösteriliyor
+    assert sp.visible["2"].path.name in sp.detail.cget("text")                      # son tıklanan: g2
+    assert "2 görüntü seçili" in sp.detail.cget("text")                             # seçim sayısı da yazıyor
+    _click(sp, "1", ctrl=True)
+    assert sp.visible["1"].path.name in sp.detail.cget("text")                      # yeni son tıklanan: g1
+
+
+def test_ctrl_click_deselect_falls_back_to_a_remaining_image(page):
+    sp = page
+    _click(sp, "0")
+    _click(sp, "2", ctrl=True)
+    _click(sp, "2", ctrl=True)                                                      # g2'yi seçimden çıkar
+    assert set(sp.tree.selection()) == {"0"}
+    assert sp.visible["0"].path.name in sp.detail.cget("text")
+    assert sp.preview.cget("text") == "" and not sp.errors
+
+
+def test_select_all_still_previews_an_image(page):
+    sp = page
+    _click(sp, "1")
     sp.select_all()
-    sp.update()
-    assert "3 görüntü seçili" in sp.preview.cget("text")
-    sp.tree.selection_set("2")
     sp.update()
     assert not sp.errors, sp.errors
     assert sp.preview.cget("text") == "" and sp._img is not sp._blank_image()
+    assert "3 görüntü seçili" in sp.detail.cget("text")
 
 
 def test_preview_of_unreadable_image_does_not_break_next_one(page):
