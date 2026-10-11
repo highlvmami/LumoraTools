@@ -24,4 +24,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: CleanerPage(parent, hub),
     order=60,
     guide=GUIDE,
+    category="bakim",
 )

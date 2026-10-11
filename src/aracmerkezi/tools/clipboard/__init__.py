@@ -38,4 +38,5 @@ TOOL = ToolInfo(
     start=_start,
     stop=_stop,
     guide=GUIDE,
+    category="uretken",
 )

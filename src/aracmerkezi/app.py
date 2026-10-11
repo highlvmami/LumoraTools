@@ -156,6 +156,7 @@ class Hub(ctk.CTk):
                      text_color=ui.ACCENT_SOFT_TEXT, fg_color=ui.ACCENT_SOFT, corner_radius=8,
                      height=24).pack(anchor="w", padx=22, pady=(2, 22), ipadx=8)
         self.nav: dict[str, ctk.CTkButton] = {}
+        self.cat_headers: dict[str, ctk.CTkButton] = {}
         self._nav_button(bar, "home", "🏠  Ana sayfa")
         ctk.CTkLabel(bar, text="ARAÇLAR", text_color=ui.MUTED, font=ctk.CTkFont(size=11, weight="bold")).pack(
             anchor="w", padx=22, pady=(14, 4))
@@ -171,12 +172,55 @@ class Hub(ctk.CTk):
     def _populate_nav(self) -> None:
         for w in self.tool_nav.winfo_children():
             w.destroy()
+        self.cat_headers.clear()
         for k in [k for k in self.nav if k not in FIXED_PAGES]:
             del self.nav[k]
-        for t in self.tools:
-            self._nav_button(self.tool_nav, t.id, f"{t.icon}  {t.name}")
+        if self.grouped:
+            collapsed = set(self.menu_cfg.get("collapsed", []))
+            for cat, items in registry.group_tools(self.tools):
+                self._category_header(cat, cat.id in collapsed and not self._holds_current(items), len(items))
+                if cat.id not in collapsed or self._holds_current(items):
+                    for t in items:
+                        self._nav_button(self.tool_nav, t.id, f"{t.icon}  {t.name}", indent=True)
+        else:
+            for t in self.tools:
+                self._nav_button(self.tool_nav, t.id, f"{t.icon}  {t.name}")
         if self.current in self.nav:
             self.nav[self.current].configure(fg_color=ui.ACCENT, text_color=ui.ACCENT_TEXT)
+
+    @property
+    def grouped(self) -> bool:
+        return bool(self.menu_cfg.get("grouped", True))
+
+    def _holds_current(self, items) -> bool:
+        return any(t.id == self.current for t in items)  # açık sayfanın kategorisi kapalı görünmez
+
+    def _category_header(self, cat, closed: bool, count: int) -> None:
+        arrow = "▸" if closed else "▾"
+        b = ctk.CTkButton(self.tool_nav, text=f"{arrow}  {cat.name.upper()}  ({count})", anchor="w", height=28,
+                          corner_radius=8, fg_color="transparent", text_color=ui.MUTED, hover_color=ui.NAV_HOVER,
+                          font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self.toggle_category(cat.id))
+        b.pack(fill="x", padx=14, pady=(8, 2))
+        self.cat_headers[cat.id] = b
+
+    def toggle_category(self, cat_id: str) -> None:
+        """Kategoriyi açar/kapatır; tercih kaydedilir. Açık sayfanın kategorisi kapatılamaz (düğmesi kaybolmasın)."""
+        collapsed = set(self.menu_cfg.get("collapsed", []))
+        collapsed ^= {cat_id}
+        self.menu_cfg["collapsed"] = sorted(collapsed)
+        self.save_settings()
+        self._populate_nav()
+
+    def set_grouped(self, on: bool) -> None:
+        self.menu_cfg["grouped"] = bool(on)
+        self.save_settings()
+        self._populate_nav()
+        home = self.pages.pop("home", None)
+        if home is not None:
+            home.destroy()
+        if self.current == "home":
+            self.current = None
+            self.show("home")
 
     def _load_logo(self):
         try:
@@ -186,11 +230,13 @@ class Hub(ctk.CTk):
         except Exception:
             return None  # logo yoksa yalnızca ad görünür
 
-    def _nav_button(self, bar, key: str, label: str, bottom: bool = False, pad_bottom: int = 3) -> None:
+    def _nav_button(self, bar, key: str, label: str, bottom: bool = False, pad_bottom: int = 3,
+                    indent: bool = False) -> None:
         b = ctk.CTkButton(bar, text=label, anchor="w", height=40, corner_radius=10, fg_color="transparent",
                           text_color=ui.TEXT, hover_color=ui.NAV_HOVER, font=ctk.CTkFont(size=13),
                           command=lambda: self.show(key))
-        b.pack(fill="x", padx=14, pady=(3, pad_bottom) if bottom else 3, side="bottom" if bottom else "top")
+        b.pack(fill="x", padx=(24, 14) if indent else 14, pady=(3, pad_bottom) if bottom else 3,
+               side="bottom" if bottom else "top")
         self.nav[key] = b
 
     def _page_for(self, key: str) -> ctk.CTkFrame:
@@ -215,17 +261,32 @@ class Hub(ctk.CTk):
         if key not in self.pages:
             self.pages[key] = self._page_for(key)
         self.pages[key].grid(row=1, column=0, sticky="nsew")
-        self.nav[key].configure(fg_color=ui.ACCENT, text_color=ui.ACCENT_TEXT)
         self.current = key
+        if key not in self.nav:          # kapalı kategorideki araç açıldı (ör. ana sayfadan): kategori görünür olsun
+            self._populate_nav()
+        self.nav[key].configure(fg_color=ui.ACCENT, text_color=ui.ACCENT_TEXT)
 
     # ---------- sayfalar ----------
     def _build_home(self) -> ctk.CTkFrame:
         page = ctk.CTkFrame(self.content, fg_color="transparent")
         ui.page_header(page, "Hoş geldin 👋", "Bir araç seç; hepsi aynı pencerede, aynı temayla çalışır.")
-        grid = ctk.CTkFrame(page, fg_color="transparent")
-        grid.pack(fill="both", expand=True)
+        body = ctk.CTkScrollableFrame(page, fg_color="transparent") if self.grouped else page
+        if self.grouped:
+            body.pack(fill="both", expand=True)
+        sections = (registry.group_tools(self.tools) if self.grouped
+                    else [(None, list(self.tools))])
+        for cat, items in sections:
+            if cat is not None:
+                ctk.CTkLabel(body, text=f"{cat.icon}  {cat.name}", font=ctk.CTkFont(size=15, weight="bold")).pack(
+                    anchor="w", padx=8, pady=(12, 0))
+            self._home_cards(body, items)
+        return page
+
+    def _home_cards(self, parent, items) -> None:
+        grid = ctk.CTkFrame(parent, fg_color="transparent")
+        grid.pack(fill="both", expand=not self.grouped)
         grid.grid_columnconfigure((0, 1), weight=1, uniform="c")
-        for i, t in enumerate(self.tools):
+        for i, t in enumerate(items):
             card = ctk.CTkFrame(grid, fg_color=ui.CARD, corner_radius=16)
             card.grid(row=i // 2, column=i % 2, sticky="nsew", padx=7, pady=7)
             ctk.CTkLabel(card, text=t.icon, font=ctk.CTkFont(size=34)).pack(anchor="w", padx=20, pady=(18, 0))
@@ -235,7 +296,6 @@ class Hub(ctk.CTk):
                 anchor="w", padx=20, pady=(2, 10))
             ctk.CTkButton(card, text="Aç", width=90, fg_color=ui.ACCENT, hover_color=ui.ACCENT_HOVER,
                           command=lambda k=t.id: self.show(k)).pack(anchor="w", padx=20, pady=(0, 18))
-        return page
 
     def _build_settings(self) -> ctk.CTkFrame:
         page = ctk.CTkScrollableFrame(self.content, fg_color="transparent")
@@ -288,6 +348,10 @@ class Hub(ctk.CTk):
         ctk.CTkLabel(card, text="Araçları ⠿ tutamacından sürükleyerek sırala; anahtarla menüden gizle veya göster. "
                                 "Gizlenen aracın arka plan işi (ör. pano kaydı) de durur.",
                      text_color=ui.MUTED, anchor="w", wraplength=700, justify="left").pack(fill="x", padx=18, pady=(2, 10))
+        self.group_var = ctk.BooleanVar(value=self.grouped)
+        ctk.CTkSwitch(card, text="Araçları kategorilere göre grupla (Dosyalar, Bakım, Sistem, Üretkenlik)",
+                      variable=self.group_var, progress_color=ui.ACCENT,
+                      command=lambda: self.set_grouped(self.group_var.get())).pack(anchor="w", padx=18, pady=(0, 10))
         self.menu_editor = MenuEditor(
             card, entries=[(t.id, f"{t.icon}  {t.name}") for t in self.menu_tools],
             order=[t.id for t in self.menu_tools], hidden=set(self.menu_cfg.get("hidden", [])),

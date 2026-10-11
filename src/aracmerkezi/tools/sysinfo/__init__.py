@@ -23,4 +23,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: SysInfoPage(parent, hub),
     order=90,
     guide=GUIDE,
+    category="sistem",
 )

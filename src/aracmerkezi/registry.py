@@ -21,6 +21,23 @@ class Guide:
 
 
 @dataclass(frozen=True)
+class Category:
+    id: str
+    name: str
+    icon: str
+
+
+# Menü kategorileri, bu sırayla gösterilir. Her araç `category` ile birini seçer; bilinmeyen kategori "Diğer"e düşer.
+CATEGORIES = (
+    Category("dosya", "Dosyalar", "📁"),
+    Category("bakim", "Bakım ve temizlik", "🧹"),
+    Category("sistem", "Sistem ve ağ", "🖥"),
+    Category("uretken", "Üretkenlik", "✍"),
+)
+OTHER = Category("diger", "Diğer", "🧩")
+
+
+@dataclass(frozen=True)
 class ToolInfo:
     id: str
     name: str
@@ -31,6 +48,7 @@ class ToolInfo:
     start: Callable[[Any], None] | None = None  # uygulama açılınca arka plan işi başlatır
     stop: Callable[[Any], None] | None = None   # araç menüden gizlenince arka plan işini durdurur
     guide: Guide | None = None                  # Rehberler sayfasındaki kısa anlatım
+    category: str = "diger"                     # menü kategorisi (CATEGORIES içindeki kimliklerden biri)
 
 
 # PyInstaller klasör taramasını (pkgutil) güvenilir desteklemez; paketlenmiş sürümde de
@@ -58,6 +76,17 @@ def order_tools(tools: list[ToolInfo], saved_order: list[str] | None,
     ordered += [t for t in default if t.id in by_id]
     hidden = hidden or set()
     return ordered, [t for t in ordered if t.id not in hidden]
+
+
+def group_tools(tools: list[ToolInfo]) -> list[tuple[Category, list[ToolInfo]]]:
+    """Araçları kategorilere ayırır. Kategori sırası sabittir (CATEGORIES, sonra Diğer); bir kategorideki araçların
+    sırası, gelen sıra korunarak (kullanıcının sürükleyerek verdiği sıra) belirlenir. Boş kategoriler çıkarılır."""
+    known = {c.id: c for c in CATEGORIES}
+    buckets: dict[str, list[ToolInfo]] = {c.id: [] for c in CATEGORIES}
+    buckets[OTHER.id] = []
+    for t in tools:
+        buckets[t.category if t.category in known else OTHER.id].append(t)
+    return [(known.get(cid, OTHER), items) for cid, items in buckets.items() if items]
 
 
 def discover() -> list[ToolInfo]:

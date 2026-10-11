@@ -39,6 +39,7 @@ Ekran görüntüleri klasörünü (varsayılan: Resimler\Screenshots) tarihe gö
 
 ### Menü ve tarih filtresi
 **Ayarlar → Menüyü düzenle:** araçları ⠿ tutamacından sürükleyerek sırala, anahtarla gizle/göster (gizlenen aracın arka plan işi de durur).
+Menü varsayılan olarak kategorilere ayrılır (Dosyalar, Bakım ve temizlik, Sistem ve ağ, Üretkenlik); başlığa tıklayınca açılır/kapanır. Aynı bölümdeki anahtarla düz listeye dönülebilir.
 Pano Geçmişi ve Ekran Görüntüleri'nde tarih filtresi: Bugün, Dün, Son 7/30 gün veya elle yazılan aralık.
 
 ### 🧹 Sistem Temizleyici

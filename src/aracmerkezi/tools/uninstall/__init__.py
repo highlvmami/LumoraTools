@@ -25,4 +25,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: UninstallPage(parent, hub),
     order=80,
     guide=GUIDE,
+    category="bakim",
 )

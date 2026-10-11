@@ -24,4 +24,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: SearchPage(parent, hub),
     order=10,
     guide=GUIDE,
+    category="dosya",
 )

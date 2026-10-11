@@ -23,4 +23,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: StartupPage(parent, hub),
     order=70,
     guide=GUIDE,
+    category="bakim",
 )

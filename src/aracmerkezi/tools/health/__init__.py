@@ -24,4 +24,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: HealthPage(parent, hub),
     order=120,
     guide=GUIDE,
+    category="bakim",
 )

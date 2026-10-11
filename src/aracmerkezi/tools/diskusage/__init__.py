@@ -24,4 +24,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: DiskUsagePage(parent, hub),
     order=40,
     guide=GUIDE,
+    category="dosya",
 )

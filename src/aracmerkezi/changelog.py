@@ -9,6 +9,11 @@ from __future__ import annotations
 from .updater import UpdateError, is_newer, parse_version
 
 CHANGELOG: dict[str, tuple[str, ...]] = {
+    "0.9.0": (
+        "Menü artık kategorilere ayrıldı: Dosyalar, Bakım ve temizlik, Sistem ve ağ, Üretkenlik. Başlığa tıklayınca kategori açılıp kapanır, tercihin hatırlanır.",
+        "Ana sayfadaki araç kartları da kategorilere göre gruplanır.",
+        "Ayarlar → Menüyü düzenle'deki anahtarla gruplamayı kapatıp eski düz listeye dönebilirsin; sürükleyerek verdiğin sıra kategori içinde korunur.",
+    ),
     "0.8.0": (
         "Program Kaldırıcı: yüklü programları boyut ve tarihleriyle listeler, seçtiğinin kendi kaldırıcısını başlatır.",
         "Sistem Bilgisi: işlemci, bellek, disk, ağ hızı ve pil durumunu canlı grafiklerle gösterir.",

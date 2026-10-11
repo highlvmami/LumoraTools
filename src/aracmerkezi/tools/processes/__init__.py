@@ -24,4 +24,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: ProcessesPage(parent, hub),
     order=100,
     guide=GUIDE,
+    category="sistem",
 )

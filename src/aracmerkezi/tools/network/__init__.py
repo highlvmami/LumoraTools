@@ -26,4 +26,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: NetworkPage(parent, hub),
     order=110,
     guide=GUIDE,
+    category="sistem",
 )

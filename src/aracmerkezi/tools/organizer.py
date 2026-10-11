@@ -642,4 +642,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: OrganizerPage(parent, hub),
     order=20,
     guide=GUIDE,
+    category="dosya",
 )

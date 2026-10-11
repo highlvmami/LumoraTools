@@ -24,4 +24,5 @@ TOOL = ToolInfo(
     build=lambda parent, hub: TodoPage(parent, hub),
     order=130,
     guide=GUIDE,
+    category="uretken",
 )
