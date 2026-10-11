@@ -1,7 +1,9 @@
 [project]
-name = "dosya-duzenleyici"
+name = "lumoratools"
 version = "0.1.0"
-description = "Klasörü uzantıya veya tarihe göre otomatik düzenler"
+description = "Tek pencerede 14 yerel Windows aracı: dosya düzenleme, arama, temizlik, sistem izleme ve daha fazlası"
+license = {text = "MIT"}
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["customtkinter>=5.2", "pypdf>=4", "pillow>=10", "psutil>=5.9"]
 

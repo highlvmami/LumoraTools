@@ -16,7 +16,8 @@
   <img src="https://img.shields.io/badge/SQLite-FTS5-003B57?logo=sqlite&logoColor=white" alt="SQLite FTS5">
   <img src="https://img.shields.io/badge/PyInstaller-single%20exe-2b2b2b" alt="PyInstaller">
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/pytest-330%20tests-0A9EDC?logo=pytest&logoColor=white" alt="pytest">
+  <img src="https://github.com/highlvmami/LumoraTools/actions/workflows/tests.yml/badge.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
 </div>
