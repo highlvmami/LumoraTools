@@ -165,6 +165,35 @@ class ImageLabel(ctk.CTkLabel):
         return self._img is not None and self._img is not self._blank
 
 
+class Sparkline(tk.Canvas):
+    """Küçük canlı çizgi grafik (0..maximum aralığında değerler). Boyut değişince yeniden çizilir."""
+
+    def __init__(self, master, height: int = 56, maximum: float = 100.0, **kw) -> None:
+        super().__init__(master, height=height, highlightthickness=0, bd=0, bg=CARD, **kw)
+        self.maximum = maximum
+        self._values: list[float] = []
+        self.bind("<Configure>", lambda _e: self._draw())
+
+    def set_values(self, values) -> None:
+        self._values = [float(v) for v in values]
+        self._draw()
+
+    def _draw(self) -> None:
+        self.delete("all")
+        w, h = max(self.winfo_width(), 2), max(self.winfo_height(), 2)
+        for frac in (0.25, 0.5, 0.75):                      # soluk yatay kılavuz çizgileri
+            self.create_line(0, h * frac, w, h * frac, fill=SCROLL, dash=(2, 4))
+        v = self._values
+        if len(v) < 2:
+            return
+        top = self.maximum or 1.0
+        step = w / max(len(v) - 1, 1)
+        pts = [(i * step, h - 2 - (min(max(x, 0.0), top) / top) * (h - 4)) for i, x in enumerate(v)]
+        flat = [c for p in pts for c in p]
+        self.create_polygon([0, h, *flat, w, h], fill=ACCENT_SOFT, outline="")
+        self.create_line(*flat, fill=ACCENT, width=2, smooth=True)
+
+
 def page_header(parent, title: str, subtitle: str) -> None:
     ctk.CTkLabel(parent, text=title, font=ctk.CTkFont(size=26, weight="bold")).pack(anchor="w")
     ctk.CTkLabel(parent, text=subtitle, text_color=MUTED).pack(anchor="w", pady=(0, 14))

@@ -159,13 +159,14 @@ class Hub(ctk.CTk):
         self._nav_button(bar, "home", "🏠  Ana sayfa")
         ctk.CTkLabel(bar, text="ARAÇLAR", text_color=ui.MUTED, font=ctk.CTkFont(size=11, weight="bold")).pack(
             anchor="w", padx=22, pady=(14, 4))
-        self.tool_nav = ctk.CTkFrame(bar, fg_color="transparent")
-        self.tool_nav.pack(fill="x")
-        self._populate_nav()
-        # alttan yukarı paketlenir: Ayarlar en altta, hemen üstünde Rehberler, onun üstünde İletişim
+        # Alttaki sabit düğmeler ÖNCE yerleştirilir (Ayarlar en altta, hemen üstünde Rehberler, onun üstünde İletişim):
+        # araç sayısı ne kadar artarsa artsın bunlar ekranda kalır; araç listesi kalan alanda kaydırılır.
         self._nav_button(bar, "settings", "⚙  Ayarlar", bottom=True, pad_bottom=18)
         self._nav_button(bar, "guides", "📖  Rehberler", bottom=True)
         self._nav_button(bar, "contact", "💬  İletişim", bottom=True)
+        self.tool_nav = ctk.CTkScrollableFrame(bar, fg_color="transparent", corner_radius=0)
+        self.tool_nav.pack(fill="both", expand=True, padx=(0, 2))
+        self._populate_nav()
 
     def _populate_nav(self) -> None:
         for w in self.tool_nav.winfo_children():
@@ -187,7 +188,7 @@ class Hub(ctk.CTk):
 
     def _nav_button(self, bar, key: str, label: str, bottom: bool = False, pad_bottom: int = 3) -> None:
         b = ctk.CTkButton(bar, text=label, anchor="w", height=40, corner_radius=10, fg_color="transparent",
-                          text_color=ui.TEXT, hover_color=ui.NAV_HOVER, font=ctk.CTkFont(size=14),
+                          text_color=ui.TEXT, hover_color=ui.NAV_HOVER, font=ctk.CTkFont(size=13),
                           command=lambda: self.show(key))
         b.pack(fill="x", padx=14, pady=(3, pad_bottom) if bottom else 3, side="bottom" if bottom else "top")
         self.nav[key] = b
@@ -540,7 +541,7 @@ def main(argv: list[str] | None = None) -> None:
                   f"pillow={_pillow_version()}\n"
                   f"logo={asset_path('logo.png').exists()} icon={asset_path('icon.ico').exists()}\n"
                   f"imagegrab={_importable('PIL.ImageGrab')} winreg={_importable('winreg')} "
-                  f"darkdetect={_importable('darkdetect')}\n")
+                  f"darkdetect={_importable('darkdetect')} psutil={_importable('psutil')}\n")
         if len(argv) > 1:
             Path(argv[1]).write_text(report, encoding="utf-8")
         else:

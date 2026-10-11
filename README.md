@@ -51,6 +51,22 @@ Geri Dönüşüm Kutusu'na taşır. Onay penceresi neyin KALICI silineceğini a�
 Windows açılırken çalışan programları (kayıt defteri ve Başlangıç klasörleri) listeler; her birini silmeden kapatıp
 açabilirsin (Görev Yöneticisi'nin kullandığı StartupApproved işareti). Değişiklik bir sonraki oturum açışında geçerli olur.
 
+### 📦 Program Kaldırıcı
+Yüklü programları boyut ve yüklenme tarihleriyle listeler (sistem bileşenleri ve güncellemeler gizli). Kaldırmayı programın **kendi
+kaldırıcısı** yapar; araç hiçbir şeyi kendisi silmez.
+
+### 💻 Sistem Bilgisi · 📈 İşlem Yöneticisi
+Sistem Bilgisi: işlemci, bellek, disk, ağ hızı ve pil durumu canlı grafiklerle. İşlem Yöneticisi: bellek/işlemci kullanımına göre
+süreçler (aynı programı gruplama), korumalı sonlandırma: Windows'un kritik süreçleri ve uygulamanın kendisi sonlandırılamaz.
+
+### 🌐 Ağ Araçları · 🔋 Pil ve Disk Sağlığı
+Ağ: etkin bağlantılar ve dinleyen portlar (hangi program), ping, DNS, tek host:port kontrolü (port taraması yok; girdiler doğrulanır).
+Pil ve Disk: pil yıpranması (kapasite oranı, döngü) ve disk sağlığı; ayrıntılı SMART için yönetici izni gerekir.
+
+### ✅ Yapılacaklar · ⏱ Zaman Takibi
+Yapılacaklar: son tarih, öncelik, süzgeç ve arama. Zaman Takibi: hangi programda ne kadar vakit geçtiği; **varsayılan kapalı**,
+yalnızca program adı ve süre bu bilgisayarda saklanır (pencere başlığı, adres, tuş vuruşu asla alınmaz).
+
 ### 📋 Pano: görüntü ve dosya
 Pano Geçmişi artık kopyalanan görüntüleri ve dosyaları da saklar; seçip tekrar panoya alabilirsin.
 

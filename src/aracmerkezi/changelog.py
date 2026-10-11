@@ -9,6 +9,15 @@ from __future__ import annotations
 from .updater import UpdateError, is_newer, parse_version
 
 CHANGELOG: dict[str, tuple[str, ...]] = {
+    "0.8.0": (
+        "Program Kaldırıcı: yüklü programları boyut ve tarihleriyle listeler, seçtiğinin kendi kaldırıcısını başlatır.",
+        "Sistem Bilgisi: işlemci, bellek, disk, ağ hızı ve pil durumunu canlı grafiklerle gösterir.",
+        "İşlem Yöneticisi: çalışan programların bellek/işlemci kullanımını gösterir; takılanı korumalı şekilde kapatır.",
+        "Ağ Araçları: etkin bağlantılar ve dinleyen portlar, ping, DNS sorgusu, port kontrolü, ağ bağdaştırıcıları.",
+        "Pil ve Disk Sağlığı: pil yıpranması (kapasite, döngü) ve disklerin sağlık durumu.",
+        "Yapılacaklar: son tarihli, öncelikli görev listesi.",
+        "Zaman Takibi: hangi programda ne kadar vakit geçirdiğini günlük gösterir (varsayılan kapalı; yalnızca program adı saklanır).",
+    ),
     "0.7.0": (
         "Sistem Temizleyici: geçici dosyaları, indirme artıklarını, önbellekleri ve Geri Dönüşüm Kutusu'nu boyutlarıyla listeler, seçtiğini temizler.",
         "Başlangıç Programları: Windows açılırken çalışan programları gösterir, istediğini kapatıp açmanı sağlar.",
