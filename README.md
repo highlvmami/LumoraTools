@@ -1,142 +1,152 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="LumoraTools" width="96">
+<img src="assets/logo.png" alt="LumoraTools logosu" width="88">
 
 # LumoraTools
 
-**Tek pencerede 14 yerel Windows aracı: dosya düzenleme, arama, temizlik, sistem izleme, görevler ve daha fazlası. Tek `.exe`, otomatik güncelleme.**
+Windows için tek pencerede çalışan, tamamen yerel bir araç seti.
 
-**[İndir →](../../releases/latest)**
+[Son sürümü indir](../../releases/latest) · [Sürüm notları](../../releases) · [Hata bildir](../../issues)
 
 Türkçe · [English](README.en.md)
 
-<p>
-  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/customtkinter-UI-1f6feb" alt="customtkinter">
-  <img src="https://img.shields.io/badge/SQLite-FTS5-003B57?logo=sqlite&logoColor=white" alt="SQLite FTS5">
-  <img src="https://img.shields.io/badge/PyInstaller-tek%20exe-2b2b2b" alt="PyInstaller">
-  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white" alt="Windows">
-  <img src="https://github.com/highlvmami/LumoraTools/actions/workflows/tests.yml/badge.svg" alt="Testler">
-  <img src="https://img.shields.io/badge/lisans-MIT-green" alt="MIT">
-</p>
+<img src="https://img.shields.io/github/v/release/highlvmami/LumoraTools?label=s%C3%BCr%C3%BCm" alt="Son sürüm">
+<img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4" alt="Platform">
+<img src="https://img.shields.io/badge/python-3.10%2B-3776AB" alt="Python 3.10+">
+<img src="https://img.shields.io/github/license/highlvmami/LumoraTools?label=lisans" alt="Lisans">
 
 </div>
 
-Küçük, işe yarayan araçlardan oluşan bir masaüstü seti. Soldaki menüden bir araç seçilir; hepsi aynı pencerede, aynı temayla çalışır. Her şey yerel çalışır: hesap yok, bulut yok, veriler yalnızca bu bilgisayarda durur. Arayüz Python + customtkinter ile yazıldı, uygulama tek bir `.exe` olarak dağıtılır ve açılışta GitHub Releases'tan kendini günceller.
+<br>
 
-> Kod imzalı olmadığı için Windows SmartScreen ilk açılışta uyarı gösterebilir.
+<p align="center">
+  <img src="docs/screenshots/ana-sayfa.jpg" alt="LumoraTools ana sayfa" width="100%">
+</p>
+
+## Genel bakış
+
+LumoraTools; dosya düzenleme, içerik arama, disk temizliği, sistem izleme ve görev takibi gibi günlük işleri tek bir masaüstü uygulamasında toplar. Her araç aynı pencerede, aynı tema ve ayarlarla çalışır.
+
+Uygulama hesap gerektirmez ve hiçbir veriyi dışarı göndermez. Tüm ayarlar ve kayıtlar yalnızca kullanıcının bilgisayarında tutulur. Tek bir `.exe` dosyası olarak dağıtılır, kurulum gerektirmez ve yeni sürümleri GitHub Releases üzerinden kendisi yükler.
+
+## Araçlar
+
+Araçlar menüde dört başlık altında toplanır. Sıralama ve görünürlük Ayarlar ekranından değiştirilebilir.
+
+### Dosyalar
+
+| Araç | Ne yapar |
+|---|---|
+| Yerel Arama | Seçilen klasörlerdeki dosyaların içeriğini SQLite FTS5 ile dizinler ve anında arar. Düz metin, kaynak kodu, `.docx` ve `.pdf` desteklenir. Değişmeyen dosyalar yeniden okunmaz. |
+| Dosya Düzenleyici | Bir klasörü uzantıya, tarihe veya ikisine göre alt klasörlere ayırır. Her dosyanın nereye taşınacağı önceden gösterilir; dosyalar tek tek ya da toplu seçilebilir. Hiçbir dosya silinmez ve her işlem geri alınabilir. İzleme modu, klasöre yeni gelen dosyaları otomatik yerleştirir. |
+| Boyut Analizcisi | Diskte en çok yer kaplayan klasörleri oransal çubuklarla gösterir, alt klasörlere inilebilir. En büyük dosyaları ayrıca listeler. |
+| Ekran Görüntüleri | Ekran görüntüleri klasörünü yıl ve aya göre düzenler, yeni görüntüleri otomatik yerleştirir. Ad, not ve tarihe göre arama ile önizleme sunar. |
+
+### Bakım ve temizlik
+
+| Araç | Ne yapar |
+|---|---|
+| Sistem Temizleyici | Geçici dosyaları, çökme dökümlerini, yarım kalmış indirmeleri, tarayıcı önbelleklerini ve Geri Dönüşüm Kutusu'nu boyutlarıyla listeler; yalnızca seçilenleri temizler. |
+| Başlangıç Programları | Windows açılışında çalışan programları listeler. Girdiler silinmeden, Görev Yöneticisi'nin kullandığı yöntemle devre dışı bırakılır. |
+| Program Kaldırıcı | Yüklü programları boyut ve kurulum tarihiyle listeler. Kaldırma işlemini programın kendi kaldırıcısı yapar. |
+| Pil ve Disk Sağlığı | Pil yıpranmasını (tasarım kapasitesine oran, şarj döngüsü) ve disklerin sağlık durumunu gösterir. |
+
+### Sistem ve ağ
+
+| Araç | Ne yapar |
+|---|---|
+| Sistem Bilgisi | İşlemci, bellek, disk, ağ hızı ve pil durumunu canlı grafiklerle gösterir. Bilgisayar ve kullanıcı adı içermeyen bir donanım özeti kopyalanabilir. |
+| İşlem Yöneticisi | Çalışan süreçleri bellek ve işlemci kullanımına göre listeler, aynı programın süreçlerini gruplar. Kritik Windows süreçleri sonlandırılamaz. |
+| Ağ Araçları | Etkin bağlantıları ve dinlenen portları ilgili programla birlikte gösterir. Ping, DNS sorgusu ve tek port kontrolü sunar. |
+
+### Üretkenlik
+
+| Araç | Ne yapar |
+|---|---|
+| Pano Geçmişi | Kopyalanan metin, görüntü ve dosyaları saklar. Arama, sabitleme ve tarih filtresi sunar; kayıt istenildiğinde duraklatılabilir. |
+| Yapılacaklar | Son tarih ve öncelik destekli görev listesi; bekleyen, bugün, geciken ve biten görevler için filtreler. |
+| Zaman Takibi | Hangi programda ne kadar süre geçirildiğini günlük olarak raporlar. Varsayılan olarak kapalıdır. |
 
 ## Ekran görüntüleri
 
 <p align="center">
-  <img src="docs/screenshots/ana-sayfa.jpg" alt="Ana sayfa: kategorilere ayrılmış araçlar" width="100%">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/dosya-duzenleyici.jpg" alt="Dosya Düzenleyici: neyin nereye taşınacağı önizlemede" width="49%">
+  <img src="docs/screenshots/dosya-duzenleyici.jpg" alt="Dosya Düzenleyici" width="49%">
   <img src="docs/screenshots/boyut-analizcisi.jpg" alt="Boyut Analizcisi" width="49%">
 </p>
-
 <p align="center">
   <img src="docs/screenshots/yapilacaklar.jpg" alt="Yapılacaklar" width="49%">
   <img src="docs/screenshots/sistem-bilgisi.jpg" alt="Sistem Bilgisi" width="49%">
 </p>
-
 <p align="center">
-  <img src="docs/screenshots/ayarlar.jpg" alt="Ayarlar: 12 tema ve menü düzeni" width="49%">
-  <img src="docs/screenshots/rehberler.jpg" alt="Rehberler" width="49%">
+  <img src="docs/screenshots/ayarlar.jpg" alt="Ayarlar ve tema seçimi" width="49%">
+  <img src="docs/screenshots/tema-gunduz.jpg" alt="Açık tema" width="49%">
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/tema-gun-batimi.jpg" alt="Gün Batımı teması" width="49%">
-  <img src="docs/screenshots/tema-gunduz.jpg" alt="Gündüz teması" width="49%">
-</p>
+<p align="center"><sub>Görüntüler örnek verilerle alınmıştır.</sub></p>
 
-<p align="center"><sub>Ana sayfa · Dosya Düzenleyici · Boyut Analizcisi · Yapılacaklar · Sistem Bilgisi · Ayarlar · Rehberler · Gün Batımı ve Gündüz temaları. Görüntüler örnek verilerle çekildi.</sub></p>
+## Gizlilik ve güvenlik
 
-## Araçlar
-
-Menü dört kategoriye ayrılır; başlığa tıklayınca açılıp kapanır, ayarlardan düz listeye de dönülebilir.
-
-| Kategori | Araçlar |
-|---|---|
-| 📁 **Dosyalar** | Yerel Arama · Dosya Düzenleyici · Boyut Analizcisi · Ekran Görüntüleri |
-| 🧹 **Bakım ve temizlik** | Sistem Temizleyici · Başlangıç Programları · Program Kaldırıcı · Pil ve Disk Sağlığı |
-| 🖥 **Sistem ve ağ** | Sistem Bilgisi · İşlem Yöneticisi · Ağ Araçları |
-| ✍ **Üretkenlik** | Pano Geçmişi · Yapılacaklar · Zaman Takibi |
-
-### Dosyalar
-- **🔎 Yerel Arama:** seçtiğin klasörlerdeki dosyaların *içeriğinde* anında arar (SQLite FTS5). Metin, kod, `.docx` ve `.pdf` dizinlenir; değişmeyen dosyalar tekrar okunmaz. Eşleşen kelimeler vurgulanır, Türkçe harflere duyarsızdır.
-- **📁 Dosya Düzenleyici:** bir klasörü (ör. İndirilenler) uzantıya, tarihe ya da ikisine göre alt klasörlere ayırır; "olduğu gibi" modu klasör yapısını ağaç olarak listeler. Önce önizlersin: hangi dosyanın nereye taşınacağı görünür, istediklerini tek tek ya da toplu seçersin. Dosyalar silinmez, yalnızca taşınır; aynı adlı dosya `ad (1).uzantı` olur ve her işlem **Geri al** ile geri alınır. **İzle** sekmesi yeni gelen dosyaları otomatik yerleştirir (inmekte olanlara dokunmaz).
-- **📊 Boyut Analizcisi:** diskte yeri en çok kimin kapladığını çubuklarla gösterir, çubuğa tıklayınca klasörün içine girersin. "En büyük dosyalar" sekmesi tüm ağaçtaki en büyükleri sıralar. Hiçbir şey silmez.
-- **🖼 Ekran Görüntüleri:** ekran görüntüleri klasörünü `Yıl\Ay` ya da `Yıl\Ay\Gün` düzenine koyar, yenileri otomatik yerleştirir. Ada, nota, klasöre ve tarihe göre ara; tarih filtresiyle daralt; önizle, not ekle. Ctrl/Shift ile çoklu seçip silebilirsin (silinenler Geri Dönüşüm Kutusu'na gider).
-
-### Bakım ve temizlik
-- **🧹 Sistem Temizleyici:** geçici dosyaları, çökme dökümlerini, yarım indirmeleri, tarayıcı/pip önbelleklerini ve Geri Dönüşüm Kutusu'nu boyutlarıyla listeler; yalnızca işaretlediğini temizler. Yalnızca tanımlı klasörlere dokunur, 1 günden yeni geçici dosyalara ve bağlantılara (junction/symlink) dokunmaz; yarım indirmeleri kalıcı silmek yerine Geri Dönüşüm Kutusu'na taşır. Onay penceresi neyin kalıcı silineceğini açıkça yazar.
-- **🚀 Başlangıç Programları:** Windows açılırken çalışan programları (kayıt defteri ve Başlangıç klasörleri) listeler; silmeden kapatıp açabilirsin (Görev Yöneticisi'nin kullandığı StartupApproved işareti).
-- **📦 Program Kaldırıcı:** yüklü programları boyut ve tarihleriyle listeler; kaldırmayı programın **kendi kaldırıcısı** yapar, araç hiçbir şeyi kendisi silmez.
-- **🔋 Pil ve Disk Sağlığı:** pil yıpranması (kapasite oranı, şarj döngüsü) ve disklerin sağlık durumu. Ayrıntılı SMART bilgisi için yönetici izni gerekir.
-
-### Sistem ve ağ
-- **💻 Sistem Bilgisi:** işlemci, bellek, disk, ağ hızı ve pil durumu canlı grafiklerle; "Özeti kopyala" bilgisayar ve kullanıcı adını eklemeden paylaşılabilir bir özet verir.
-- **📈 İşlem Yöneticisi:** bellek/işlemci kullanımına göre süreçler, aynı programı gruplama, korumalı sonlandırma: Windows'un kritik süreçleri ve uygulamanın kendisi sonlandırılamaz.
-- **🌐 Ağ Araçları:** etkin bağlantılar ve dinleyen portlar (hangi program), ping, DNS sorgusu, tek `host:port` kontrolü. Port taraması yoktur, girdiler doğrulanır.
-
-### Üretkenlik
-- **📋 Pano Geçmişi:** kopyaladığın metin, görüntü ve dosyaları saklar; ara, sabitle, tarihe göre süz, çift tıklayıp tekrar panoya al. **Kaydediyor** anahtarı kaydı duraklatır (parola kopyalayacaksan kapat).
-- **✅ Yapılacaklar:** son tarih, öncelik, süzgeç (Bekleyen / Bugün / Geciken / Biten) ve arama.
-- **⏱ Zaman Takibi:** hangi programda ne kadar vakit geçtiğini günlük gösterir. **Varsayılan kapalıdır**; yalnızca program adı ve süre saklanır, pencere başlığı, adres ya da tuş vuruşu asla alınmaz.
-
-### Uygulamanın kendisi
-- **12 tema:** Gece, Gündüz, Okyanus, Orman, Gün Batımı, Kahve, Nord, Kömür, AMOLED, Lavanta, Şeker, Kağıt ve Windows'u izleyen "Sistem". Tüm renklerin okunabilirlik oranları testle doğrulanır.
-- **Menü düzeni:** araçları sürükleyerek sırala, anahtarla gizle (gizlenen aracın arka plan işi de durur), kategorilere göre grupla ya da düz liste kullan.
-- **Rehberler:** her aracın kısa kullanım anlatımı. **İletişim:** istek, hata ya da geri bildirimi, GitHub'da hazır doldurulmuş bir sayfa olarak açar; sen gönder demeden kimseye gitmez.
-- **Yenilikler:** güncellemeden sonra ilk açılışta değişenleri gösterir.
+- Uygulama hiçbir kullanıcı verisini bir sunucuya göndermez. Kullanıcı bir işlem başlatmadıkça yapılan tek ağ isteği yeni sürüm kontrolüdür ve Ayarlar'dan kapatılabilir.
+- Güncellemeler yalnızca HTTPS üzerinden indirilir ve SHA-256 özeti doğrulanmadan uygulanmaz.
+- Dosya Düzenleyici dosya silmez, yalnızca taşır. Ad çakışmalarında mevcut dosyanın üzerine yazılmaz.
+- Sistem Temizleyici yalnızca önceden tanımlı klasörlerde çalışır; son 24 saatte değişen geçici dosyalara ve sembolik bağlantılara dokunmaz. Kalıcı silinecek öğeler onay penceresinde açıkça belirtilir.
+- Ekran görüntüsü ve yarım indirme silme işlemleri dosyaları Geri Dönüşüm Kutusu'na taşır.
+- Zaman Takibi yalnızca program adını ve süreyi kaydeder. Pencere başlıkları, adresler veya tuş vuruşları kaydedilmez.
+- Ağ Araçları port taraması yapmaz ve tüm girdileri doğrular.
 
 ## Kurulum
 
-[Releases](../../releases/latest) sayfasından `AracMerkezi.exe` dosyasını indirip çalıştır. Kurulum gerekmez.
+1. [Releases](../../releases/latest) sayfasından `AracMerkezi.exe` dosyasını indirin.
+2. Dosyayı istediğiniz bir klasöre koyup çalıştırın. Kurulum adımı yoktur.
 
-Uygulama açılışta yeni sürüm olup olmadığına bakar ve otomatik günceller (Ayarlar'dan kapatılabilir). Güncelleme yalnızca https üzerinden indirilir ve SHA-256 özeti doğrulanmadan uygulanmaz. Veriler `~/.aracmerkezi` klasöründe tutulur (`ARACMERKEZI_HOME` ortam değişkeniyle değiştirilebilir).
+Dosya kod imzalı olmadığından Windows SmartScreen ilk çalıştırmada uyarı gösterebilir. Bu durumda "Ek bilgi" ve ardından "Yine de çalıştır" seçilerek devam edilebilir.
 
-## Geliştirme
+Uygulama verileri `%USERPROFILE%\.aracmerkezi` klasöründe tutulur. Farklı bir konum için `ARACMERKEZI_HOME` ortam değişkeni kullanılabilir.
+
+## Kaynaktan çalıştırma
+
+Python 3.10 veya üzeri gerekir.
 
 ```bash
+git clone https://github.com/highlvmami/LumoraTools.git
+cd LumoraTools
 py -m pip install -e .[dev]
-py -m aracmerkezi          # uygulamayı çalıştır
-py -m pytest               # testler
-py build.py                # dist/AracMerkezi.exe + dist/manifest.json
+py -m aracmerkezi
 ```
 
-Testlerin bir kısmı gerçek pencere açar; test sırasında ekranda kısa süre pencereler görünebilir.
+Testleri çalıştırmak ve tek dosyalık sürümü derlemek için:
 
-Yeni sürüm: `src/aracmerkezi/__init__.py` içindeki `__version__` değerini artır, `changelog.py`'ye notları ekle, `py build.py` çalıştır ve `dist/` içindeki iki dosyayı yeni bir GitHub sürümüne ekle.
+```bash
+py -m pytest
+py build.py
+```
+
+`build.py`, PyInstaller ile `dist/AracMerkezi.exe` dosyasını ve güncelleme denetiminin kullandığı `dist/manifest.json` dosyasını üretir.
 
 ## Proje yapısı
 
 ```
-src/aracmerkezi/
-  app.py             Ana pencere: kenar çubuğu, kategoriler, ayarlar, güncelleme şeridi
-  registry.py        Araç kaydı (ToolInfo, Guide, kategoriler) ve araç keşfi
-  themes.py, ui.py   12 tema ve ortak arayüz parçaları
-  updater.py         GitHub Releases'tan güvenli güncelleme
-  changelog.py       "Yenilikler" notları
-  tools/             Her araç kendi paketinde: organizer, search, diskusage, screenshots,
-                     cleaner, startup, uninstall, sysinfo, processes, network, health,
-                     clipboard, todo, timetrack
-src/duzenle/         Dosya düzenleme motoru (planlama, taşıma, geri alma)
-tests/               330 test
+src/
+  aracmerkezi/
+    app.py           Ana pencere, menü, ayarlar ve güncelleme akışı
+    registry.py      Araç kaydı, kategoriler ve araç keşfi
+    updater.py       Sürüm denetimi, indirme ve doğrulama
+    themes.py        Tema tanımları ve kontrast hesaplamaları
+    ui.py            Ortak arayüz bileşenleri
+    tools/           Her araç ayrı bir paket olarak
+  duzenle/           Dosya düzenleme motoru (planlama, taşıma, geri alma)
+tests/               pytest test paketi
+build.py             PyInstaller derleme betiği
 ```
 
-## Yeni araç eklerken
+## Yeni araç ekleme
 
-1. `src/aracmerkezi/tools/` altında yeni bir paket aç; `__init__.py` içinde bir `GUIDE` ve `TOOL = ToolInfo(...)` tanımla (`category` ile menü kategorisini seç).
-2. Sayfayı `build=lambda parent, hub: SayfaSinifi(parent, hub)` ile bağla; arka plan işi gerekiyorsa `start`/`stop` ver.
-3. Paket adını `registry.py` içindeki `BUILTIN_TOOLS` listesine ekle (tek `.exe` derlemesi için gerekli).
-4. Test yaz, `changelog.py`'ye not ekle.
+Her araç `src/aracmerkezi/tools/` altında bağımsız bir pakettir. Paketin `__init__.py` dosyası bir `ToolInfo` nesnesi tanımlar: kimlik, ad, açıklama, menü kategorisi, sayfayı oluşturan fonksiyon ve gerekiyorsa arka plan işini başlatıp durduran fonksiyonlar. Paket adı, tek dosyalık derlemeye dahil edilmesi için `registry.py` içindeki `BUILTIN_TOOLS` listesine eklenir.
 
-## Geri bildirim
+## Katkı
 
-Öneri, hata bildirimi ve fikirlerin için uygulamadaki **İletişim** sayfasını ya da [Issues](../../issues) bölümünü kullanabilirsin.
+Hata bildirimleri ve öneriler için [Issues](../../issues) bölümü kullanılabilir. Uygulama içindeki İletişim sayfası da önceden doldurulmuş bir bildirim formu açar. Büyük değişiklikler için pull request göndermeden önce bir issue açılması önerilir.
 
-Projeyi beğendiysen bir ⭐ bırakmayı unutma!
+## Lisans
+
+[MIT](LICENSE)
